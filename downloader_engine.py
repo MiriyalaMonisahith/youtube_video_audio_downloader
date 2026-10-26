@@ -5,15 +5,32 @@ import time
 from typing import Dict, Any, Optional, Callable
 import yt_dlp
 
-IS_VERCEL = os.environ.get("VERCEL") == "1"
-BASE_DIR = "/tmp" if IS_VERCEL else os.path.abspath(".")
+def is_serverless() -> bool:
+    if os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME") or os.environ.get("LAMBDA_TASK_ROOT"):
+        return True
+    try:
+        test_path = os.path.join(os.path.abspath("."), ".test_perm")
+        with open(test_path, "w") as f:
+            f.write("1")
+        os.remove(test_path)
+        return False
+    except Exception:
+        return True
+
+BASE_DIR = "/tmp" if is_serverless() else os.path.abspath(".")
 
 OUTPUT_DIR = os.path.join(BASE_DIR, "downloads")
 SHORTS_DIR = os.path.join(BASE_DIR, "shorts")
 TEMP_DIR = os.path.join(BASE_DIR, "temp")
 
-for d in [OUTPUT_DIR, SHORTS_DIR, TEMP_DIR]:
-    os.makedirs(d, exist_ok=True)
+def ensure_storage_dirs():
+    for d in [OUTPUT_DIR, SHORTS_DIR, TEMP_DIR]:
+        try:
+            os.makedirs(d, exist_ok=True)
+        except Exception:
+            pass
+
+ensure_storage_dirs()
 
 
 def format_bytes(num_bytes: Optional[float]) -> str:
@@ -81,12 +98,10 @@ def get_video_info(url: str) -> Dict[str, Any]:
                 has_audio_stream = True
 
             if height and vcodec and vcodec != 'none':
-                # Group by standard heights
                 h_val = int(height)
                 fps = f.get('fps') or 30
                 ext = f.get('ext', 'mp4')
 
-                # We prefer common resolutions
                 if h_val not in resolutions_map or (filesize and filesize > (resolutions_map[h_val].get('filesize') or 0)):
                     quality_label = f"{h_val}p"
                     if h_val >= 2160:
@@ -113,10 +128,8 @@ def get_video_info(url: str) -> Dict[str, Any]:
                         "size_formatted": format_bytes(filesize)
                     }
 
-        # Sort resolutions descending
         sorted_resolutions = sorted(resolutions_map.values(), key=lambda x: x['height'], reverse=True)
 
-        # Standard fallback resolutions if none detected
         if not sorted_resolutions:
             sorted_resolutions = [
                 {"height": 1080, "label": "1080p", "tag": "Full HD", "fps": 60, "format_id": "bestvideo+bestaudio/best", "size_formatted": "Estimated"},
@@ -165,6 +178,7 @@ def download_media(
     Downloads video or audio with user-selected quality specifications.
     Emits live progress to progress_callback.
     """
+    ensure_storage_dirs()
     timestamp = int(time.time())
     
     def ydl_hook(d):
@@ -199,7 +213,6 @@ def download_media(
     output_filepath = os.path.join(OUTPUT_DIR, output_filename_template)
 
     if media_type == "audio":
-        # Audio Extraction
         postprocessors = []
         if audio_format in ['mp3', 'm4a', 'flac', 'wav', 'opus']:
             pp = {
@@ -210,7 +223,6 @@ def download_media(
                 pp['preferredquality'] = audio_quality.replace('k', '')
             postprocessors.append(pp)
 
-        # Embed thumbnail and metadata into audio
         postprocessors.append({'key': 'FFmpegMetadata', 'add_metadata': True})
 
         ydl_opts = {
@@ -223,8 +235,6 @@ def download_media(
             'no_warnings': True,
         }
     else:
-        # Video Download with Quality Selection
-        # Select best video stream matching or closest to selected resolution + best audio
         format_str = f"bestvideo[height<={resolution}]+bestaudio/best[height<={resolution}]/best"
         ydl_opts = {
             'format': format_str,
@@ -242,7 +252,6 @@ def download_media(
         result = ydl.extract_info(url, download=True)
         filename = ydl.prepare_filename(result)
         
-        # If converted to requested extension, adjust filename
         base, _ = os.path.splitext(filename)
         expected_ext = audio_format if media_type == "audio" else video_format
         final_file = f"{base}.{expected_ext}"
@@ -251,11 +260,11 @@ def download_media(
             if os.path.exists(filename):
                 final_file = filename
             else:
-                # Find matching file in output dir
-                for f in os.listdir(OUTPUT_DIR):
-                    if str(timestamp) in f:
-                        final_file = os.path.join(OUTPUT_DIR, f)
-                        break
+                if os.path.exists(OUTPUT_DIR):
+                    for f in os.listdir(OUTPUT_DIR):
+                        if str(timestamp) in f:
+                            final_file = os.path.join(OUTPUT_DIR, f)
+                            break
 
     if progress_callback:
         progress_callback({
@@ -267,12 +276,12 @@ def download_media(
             "eta_str": "0s"
         })
 
-    file_size = os.path.getsize(final_file) if os.path.exists(final_file) else 0
+    file_size = os.path.getsize(final_file) if (final_file and os.path.exists(final_file)) else 0
 
     return {
         "success": True,
         "title": result.get('title', 'Downloaded Media'),
-        "filename": os.path.basename(final_file),
+        "filename": os.path.basename(final_file) if final_file else "media",
         "filepath": final_file,
         "size_str": format_bytes(file_size),
         "media_type": media_type,

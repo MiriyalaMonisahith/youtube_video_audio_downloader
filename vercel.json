@@ -1,8 +1,16 @@
 {
   "rewrites": [
     {
-      "source": "/(.*)",
-      "destination": "/api/index.py"
+      "source": "/api/(.*)",
+      "destination": "web_server.py"
+    },
+    {
+      "source": "/media/(.*)",
+      "destination": "web_server.py"
+    },
+    {
+      "source": "/download_media/(.*)",
+      "destination": "web_server.py"
     }
   ]
 }
