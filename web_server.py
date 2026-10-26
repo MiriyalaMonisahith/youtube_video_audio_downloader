@@ -13,16 +13,37 @@ if sys.platform == "win32":
 
 from flask import Flask, request, jsonify, send_from_directory, send_file, Response
 from downloader_engine import get_video_info, download_media, OUTPUT_DIR, SHORTS_DIR
-from generate_clips import main_pipeline
 
-app = Flask(__name__, static_folder="static", static_url_path="")
+try:
+    from generate_clips import main_pipeline
+except Exception as e:
+    def main_pipeline(*args, **kwargs):
+        raise RuntimeError("AI Shorts pipeline requires local Whisper and FFmpeg. Please run locally with 'python web_server.py'!")
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+STATIC_DIR = os.path.join(BASE_DIR, "static")
+
+app = Flask(__name__, static_folder=STATIC_DIR, static_url_path="")
 
 # In-memory job state store
 jobs = {}
 
 @app.route("/")
 def index():
-    return send_from_directory("static", "index.html")
+    return send_from_directory(STATIC_DIR, "index.html")
+
+
+@app.route("/<path:filename>")
+def serve_static_file(filename):
+    target = os.path.join(STATIC_DIR, filename)
+    if os.path.exists(target) and os.path.isfile(target):
+        return send_from_directory(STATIC_DIR, filename)
+    return "Not found", 404
+
+
+@app.route("/api/health")
+def health():
+    return jsonify({"status": "ok", "vercel": os.environ.get("VERCEL") == "1"})
 
 
 @app.route("/api/info", methods=["POST"])
@@ -250,5 +271,5 @@ def force_download(subpath):
 
 if __name__ == "__main__":
     port = 5000
-    print(f"\n🚀 Launching Premium Downloader & AI Shorts Web App at http://localhost:{port}\n")
+    print(f"\nLaunching Premium Downloader & AI Shorts Web App at http://localhost:{port}\n")
     app.run(host="0.0.0.0", port=port, debug=False, threaded=True)
