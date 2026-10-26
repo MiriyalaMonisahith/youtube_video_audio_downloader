@@ -12,25 +12,39 @@ from ai.clip_detector import find_best_clips
 from video.cutter import cut_clip_vertical
 from ai.captions import generate_srt
 from ai.clip_ranker import rank_clips
+import yt_dlp
 from ai.hookdetector import boost_hook
 from ai.title_generator import generate_title
 from ai.hashtag_generator import generate_hashtags
 from downloader_engine import SHORTS_DIR, TEMP_DIR
 
+FFMPEG_BIN = shutil.which("ffmpeg") or "ffmpeg"
+
 
 def download_youtube_video(url: str, output_path: str = None) -> str:
-    """Downloads a YouTube video to temp directory."""
+    """Downloads a YouTube video to temp directory using native Python yt_dlp."""
     if output_path is None:
-        output_path = os.path.join(TEMP_DIR, "video.mp4")
+        output_path = os.path.join(TEMP_DIR, "source_video.mp4")
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
-    subprocess.run([
-        "yt-dlp",
-        "-f", "bv*[height<=1080]+ba/b[height<=1080]/b",
-        "--merge-output-format", "mp4",
-        "-o", output_path,
-        url
-    ], check=True)
-    return output_path
+
+    base_no_ext, _ = os.path.splitext(output_path)
+    outtmpl = f"{base_no_ext}.%(ext)s"
+
+    ydl_opts = {
+        'format': 'bestvideo[height<=1080]+bestaudio/best[height<=1080]/best',
+        'merge_output_format': 'mp4',
+        'outtmpl': outtmpl,
+        'quiet': True,
+        'no_warnings': True,
+    }
+
+    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        ydl.download([url])
+
+    final_path = f"{base_no_ext}.mp4"
+    if not os.path.exists(final_path) and os.path.exists(output_path):
+        final_path = output_path
+    return final_path
 
 
 def burn_subtitles_styled(clip_path: str, srt_path: str, final_path: str, style: str = "neon_yellow"):
@@ -52,7 +66,7 @@ def burn_subtitles_styled(clip_path: str, srt_path: str, final_path: str, style:
     vf_filter = f"subtitles='{escaped_srt}':force_style='{style_params}'"
 
     cmd = [
-        "ffmpeg",
+        FFMPEG_BIN,
         "-y",
         "-i", clip_path,
         "-vf", vf_filter,
