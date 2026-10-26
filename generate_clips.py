@@ -16,13 +16,17 @@ import yt_dlp
 from ai.hookdetector import boost_hook
 from ai.title_generator import generate_title
 from ai.hashtag_generator import generate_hashtags
-from downloader_engine import SHORTS_DIR, TEMP_DIR
+from downloader_engine import SHORTS_DIR, TEMP_DIR, OUTPUT_DIR, format_bytes
 
 FFMPEG_BIN = shutil.which("ffmpeg") or "ffmpeg"
 
 
-def download_youtube_video(url: str, output_path: str = None) -> str:
-    """Downloads a YouTube video to temp directory using native Python yt_dlp."""
+def download_youtube_video(
+    url: str,
+    output_path: str = None,
+    progress_callback: Optional[Callable[[Dict[str, Any]], None]] = None
+) -> str:
+    """Downloads a YouTube video to temp directory using native Python yt_dlp with live progress hook."""
     if output_path is None:
         output_path = os.path.join(TEMP_DIR, "source_video.mp4")
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
@@ -30,10 +34,43 @@ def download_youtube_video(url: str, output_path: str = None) -> str:
     base_no_ext, _ = os.path.splitext(output_path)
     outtmpl = f"{base_no_ext}.%(ext)s"
 
+    def ydl_hook(d):
+        if not progress_callback:
+            return
+        status = d.get('status')
+        if status == 'downloading':
+            total = d.get('total_bytes') or d.get('total_bytes_estimate') or 0
+            downloaded = d.get('downloaded_bytes', 0)
+            pct = (downloaded / total * 100) if total > 0 else 0
+            speed = d.get('speed', 0)
+            eta = d.get('eta', 0)
+
+            # Map download (0-100%) to pipeline progress (5-28%)
+            pipe_pct = 5 + int(pct * 0.23)
+            speed_txt = f"{speed / (1024*1024):.1f} MB/s" if speed else ""
+            eta_txt = f"ETA: {int(eta)}s" if eta else ""
+            size_txt = f"{downloaded / (1024*1024):.1f} / {total / (1024*1024):.1f} MB"
+
+            progress_callback({
+                "step": 1,
+                "total_steps": 6,
+                "message": f"Downloading source: {size_txt} ({pct:.0f}%) • {speed_txt} {eta_txt}".strip(),
+                "percent": pipe_pct
+            })
+        elif status == 'finished':
+            progress_callback({
+                "step": 1,
+                "total_steps": 6,
+                "message": "Finalizing source video download...",
+                "percent": 28
+            })
+
+    # For shorts generation, 720p is optimal (fast download, identical mobile 9:16 vertical quality)
     ydl_opts = {
-        'format': 'bestvideo[height<=1080]+bestaudio/best[height<=1080]/best',
+        'format': 'bestvideo[height<=720]+bestaudio/best[height<=720]/best',
         'merge_output_format': 'mp4',
         'outtmpl': outtmpl,
+        'progress_hooks': [ydl_hook],
         'quiet': True,
         'no_warnings': True,
     }
@@ -114,14 +151,14 @@ def main_pipeline(
     # 1. Video Source Preparation
     os.makedirs(TEMP_DIR, exist_ok=True)
     if source_url_or_file.startswith("http://") or source_url_or_file.startswith("https://"):
-        notify(1, total_steps, "Downloading source YouTube video...", 10)
+        notify(1, total_steps, "Connecting to stream and starting video download...", 5)
         video_path = os.path.join(TEMP_DIR, "source_video.mp4")
-        download_youtube_video(source_url_or_file, video_path)
+        download_youtube_video(source_url_or_file, video_path, progress_callback=progress_callback)
     else:
         video_path = os.path.abspath(source_url_or_file)
         if not os.path.exists(video_path):
             raise FileNotFoundError(f"Video file not found: {video_path}")
-        notify(1, total_steps, "Using local video source...", 15)
+        notify(1, total_steps, "Using local video source...", 28)
 
     # Setup Job output folder
     job_id = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -129,13 +166,23 @@ def main_pipeline(
     os.makedirs(output_dir, exist_ok=True)
 
     # 2. Extract Transcript with Whisper
-    notify(2, total_steps, "Extracting audio & Whisper speech recognition...", 30)
-    segments = get_segments(video_path)
+    notify(2, total_steps, "Extracting audio track for fast transcription...", 30)
+    audio_temp = os.path.join(TEMP_DIR, "whisper_audio.wav")
+    try:
+        subprocess.run([
+            FFMPEG_BIN, "-y", "-i", video_path, "-vn", "-ar", "16000", "-ac", "1", audio_temp
+        ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        target_audio = audio_temp if os.path.exists(audio_temp) else video_path
+    except Exception:
+        target_audio = video_path
+
+    notify(2, total_steps, "Whisper AI transcribing speech (analyzing sentences)...", 35)
+    segments = get_segments(target_audio)
     if not segments:
         raise ValueError("Could not extract speech segments from video.")
 
     # 3. Build Chunks and Detect Viral Moments
-    notify(3, total_steps, "Analyzing transcript & detecting high-impact viral moments...", 50)
+    notify(3, total_steps, "Analyzing transcript & detecting high-impact viral hooks...", 50)
     chunks = build_chunks(segments)
 
     best_clips = []
@@ -150,22 +197,21 @@ def main_pipeline(
     best_clips = best_clips[:num_clips]
 
     if not best_clips:
-        # Fallback to first 30 seconds
         best_clips = [{"start": 0, "end": min(30, segments[-1]["end"]), "score": 80, "reason": "opening hook"}]
 
     # 4. Cut 9:16 Vertical Clips and Burn Subtitles
-    notify(4, total_steps, f"Cropping vertical 9:16 & burning stylish captions ({len(best_clips)} clips)...", 70)
-    
     generated_clips = []
     title_seed_text = ""
 
     for i, clip in enumerate(best_clips):
         clip_num = i + 1
+        clip_pct = 60 + int((i / len(best_clips)) * 22)
+        notify(4, total_steps, f"Cropping vertical 9:16 & burning captions (Short #{clip_num} of {len(best_clips)})...", clip_pct)
+
         clip_path = os.path.join(output_dir, f"clip_{clip_num}.mp4")
         srt_path = os.path.join(output_dir, f"clip_{clip_num}.srt")
         final_path = os.path.join(output_dir, f"short_{clip_num}_final.mp4")
 
-        # Cut vertical video
         cut_clip_vertical(
             video_path,
             clip["start"],
@@ -173,12 +219,10 @@ def main_pipeline(
             clip_path
         )
 
-        # Generate SRT
         srt_text = generate_srt(segments, clip["start"], clip["end"])
         with open(srt_path, "w", encoding="utf-8") as f:
             f.write(srt_text)
 
-        # Burn Subtitles
         burn_subtitles_styled(clip_path, srt_path, final_path, style=caption_style)
 
         title_seed_text += clip.get("reason", "") + " "
@@ -196,7 +240,7 @@ def main_pipeline(
         })
 
     # 5. Viral Titles and Hashtags
-    notify(5, total_steps, "Generating viral titles & hashtags...", 85)
+    notify(5, total_steps, "Generating viral SEO titles & hashtags...", 85)
     title = generate_title(title_seed_text or "Insane Moment")
     hashtags = generate_hashtags(title_seed_text or "viral shorts")
 

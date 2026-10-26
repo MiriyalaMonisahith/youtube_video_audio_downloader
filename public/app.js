@@ -491,9 +491,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const job = data.job;
         if (job.status === 'processing') {
           const step = job.step || 1;
-          const pct = job.percent || 15;
+          const pct = Math.max(5, Math.min(99, job.percent || 15));
           shortsPercentText.textContent = `${pct}%`;
           shortsCurrentMsg.textContent = job.message || 'Processing...';
+
+          const pBar = document.getElementById('shorts-progress-bar');
+          if (pBar) {
+            pBar.style.width = `${pct}%`;
+          }
 
           for (let i = 1; i <= 6; i++) {
             const stepEl = document.getElementById(`step-${i}`);
@@ -510,6 +515,8 @@ document.addEventListener('DOMContentLoaded', () => {
         } else if (job.status === 'completed') {
           clearInterval(interval);
           shortsPercentText.textContent = '100%';
+          const pBar = document.getElementById('shorts-progress-bar');
+          if (pBar) pBar.style.width = '100%';
           shortsCurrentMsg.textContent = 'AI Shorts Pack Ready! 🚀';
           for (let i = 1; i <= 6; i++) {
             document.getElementById(`step-${i}`).classList.add('completed');
