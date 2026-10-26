@@ -1,96 +1,159 @@
 /**
- * VORTEX STUDIO - CLIENT JAVASCRIPT
+ * VORTEX STUDIO PRO - CLIENT APPLICATION LOGIC
+ * Full 7-Pillar Implementation:
+ * 1. Speed profiling & hardware status
+ * 2. Multi-factor AI clip scoring & curation
+ * 3. Studio customizer (ASS styles, drag-to-trim, progress bar, watermark)
+ * 4. Rights & safety verification
+ * 5. Publishing hub (A/B titles, hashtags, calendar)
+ * 6. Real-time SSE progress streaming & 9:16 player
  */
 
 document.addEventListener('DOMContentLoaded', () => {
   // -----------------------------------------
-  // State
+  // Global State
   // -----------------------------------------
+  let currentAnalysis = null;
+  let selectedCandidate = null;
+  let selectedStyle = 'mrbeast';
+  let activeEventSource = null;
+
+  // Traditional Downloader State
   let currentVideoInfo = null;
-  let selectedMode = 'video'; // 'video' | 'audio'
+  let selectedMode = 'video';
   let selectedResolution = 1080;
   let selectedVideoFormat = 'mp4';
   let selectedAudioFormat = 'mp3';
   let selectedAudioQuality = '320k';
-  let selectedShortsNumClips = 3;
-  let selectedCaptionStyle = 'neon_yellow';
 
   // -----------------------------------------
   // DOM Elements
   // -----------------------------------------
-  // Tabs
   const tabBtns = document.querySelectorAll('.tab-btn');
   const tabContents = document.querySelectorAll('.tab-content');
+  const toastEl = document.getElementById('app-toast');
+  const toastText = document.getElementById('toast-text');
 
-  // Downloader tab elements
+  // Hardware status pills
+  const hwName = document.getElementById('hw-name');
+
+  // Shorts Studio Elements
+  const shortsUrlInput = document.getElementById('shorts-url-input');
+  const btnClearShortsUrl = document.getElementById('btn-clear-shorts-url');
+  const btnAnalyzeVideo = document.getElementById('btn-analyze-video');
+  const analyzeSpinner = document.getElementById('analyze-spinner');
+
+  // Timings
+  const timingsBanner = document.getElementById('timings-banner');
+  const tDl = document.getElementById('t-dl');
+  const tTr = document.getElementById('t-tr');
+  const tSel = document.getElementById('t-sel');
+  const tRnd = document.getElementById('t-rnd');
+  const tTotal = document.getElementById('t-total');
+
+  // Analysis Meta
+  const analysisMetaCard = document.getElementById('analysis-meta-card');
+  const analysisThumb = document.getElementById('analysis-thumb');
+  const analysisTitle = document.getElementById('analysis-title');
+  const analysisChannel = document.getElementById('analysis-channel');
+  const analysisDuration = document.getElementById('analysis-duration');
+  const rightsBadge = document.getElementById('rights-badge');
+  const rightsMsg = document.getElementById('rights-msg');
+
+  // Candidates & Customizer
+  const clipsCuratorCard = document.getElementById('clips-curator-card');
+  const candidatesGrid = document.getElementById('candidates-grid');
+  const selectedClipLabel = document.getElementById('selected-clip-label');
+  const sliderStart = document.getElementById('slider-start');
+  const sliderEnd = document.getElementById('slider-end');
+  const lblStartTime = document.getElementById('lbl-start-time');
+  const lblEndTime = document.getElementById('lbl-end-time');
+  const lblDuration = document.getElementById('lbl-duration');
+  const styleCards = document.querySelectorAll('.style-card');
+  const chkProgressBar = document.getElementById('chk-progress-bar');
+  const inputWatermark = document.getElementById('input-watermark');
+  const btnRenderShort = document.getElementById('btn-render-short');
+
+  // Rendering Progress & Showcase
+  const renderProgressCard = document.getElementById('render-progress-card');
+  const renderStatusMsg = document.getElementById('render-status-msg');
+  const renderPct = document.getElementById('render-pct');
+  const renderProgressFill = document.getElementById('render-progress-fill');
+
+  const renderedShowcaseCard = document.getElementById('rendered-showcase-card');
+  const renderStatTime = document.getElementById('render-stat-time');
+  const renderStatSize = document.getElementById('render-stat-size');
+  const shortVideoPlayer = document.getElementById('short-video-player');
+  const btnDownloadShort = document.getElementById('btn-download-short');
+
+  // Publishing Hub
+  const abTitlesList = document.getElementById('ab-titles-list');
+  const pubDescription = document.getElementById('pub-description');
+  const btnCopyDesc = document.getElementById('btn-copy-desc');
+
+  // Downloader Tab Elements
   const videoUrlInput = document.getElementById('video-url-input');
   const btnClearUrl = document.getElementById('btn-clear-url');
   const btnInspectUrl = document.getElementById('btn-inspect-url');
+  const inspectSpinner = document.getElementById('inspect-spinner');
   const videoDetailsCard = document.getElementById('video-details-card');
-
-  // Meta Elements
   const metaThumb = document.getElementById('meta-thumb');
   const metaDuration = document.getElementById('meta-duration');
   const metaTitle = document.getElementById('meta-title');
   const metaUploader = document.getElementById('meta-uploader');
   const metaViews = document.getElementById('meta-views');
   const metaDesc = document.getElementById('meta-desc');
-
-  // Mode buttons & Panels
   const modeVideoBtn = document.getElementById('mode-video-btn');
   const modeAudioBtn = document.getElementById('mode-audio-btn');
   const videoOptionsPanel = document.getElementById('video-options-panel');
   const audioOptionsPanel = document.getElementById('audio-options-panel');
   const resolutionsContainer = document.getElementById('resolutions-container');
   const btnStartDownload = document.getElementById('btn-start-download');
-  const btnDownloadLabel = document.getElementById('btn-download-label');
-
-  // Progress & Completion Elements
   const dlProgressContainer = document.getElementById('download-progress-container');
   const dlStatusText = document.getElementById('dl-status-text');
   const dlSpeed = document.getElementById('dl-speed');
-  const dlEta = document.getElementById('dl-eta');
   const dlSize = document.getElementById('dl-size');
   const dlProgressBar = document.getElementById('dl-progress-bar');
-  const dlCompleteCard = document.getElementById('download-complete-card');
-  const dlResultTitle = document.getElementById('dl-result-title');
-  const dlPlayerContainer = document.getElementById('dl-player-container');
-  const btnSaveFile = document.getElementById('btn-save-file');
-  const btnDownloadAnother = document.getElementById('btn-download-another');
 
-  // Shorts Tab elements
-  const shortsUrlInput = document.getElementById('shorts-url-input');
-  const btnGenerateShorts = document.getElementById('btn-generate-shorts');
-  const shortsPipelineCard = document.getElementById('shorts-pipeline-card');
-  const shortsPercentText = document.getElementById('shorts-percent-text');
-  const shortsCurrentMsg = document.getElementById('shorts-current-msg');
-  const shortsShowcaseCard = document.getElementById('shorts-showcase-card');
-  const showcaseTitle = document.getElementById('showcase-title');
-  const showcaseHashtags = document.getElementById('showcase-hashtags');
-  const btnCopyHashtags = document.getElementById('btn-copy-hashtags');
-  const btnDownloadZip = document.getElementById('btn-download-zip');
-  const shortsClipsGrid = document.getElementById('shorts-clips-grid');
-
-  // Media Vault elements
+  // Media Vault Elements
   const btnRefreshVault = document.getElementById('btn-refresh-vault');
   const vaultDownloadsList = document.getElementById('vault-downloads-list');
   const vaultShortsList = document.getElementById('vault-shorts-list');
   const vaultCountBadge = document.getElementById('vault-count');
 
-  // Toast
-  const toastEl = document.getElementById('app-toast');
-  const toastText = document.getElementById('toast-text');
-
   // -----------------------------------------
-  // Utility Functions
+  // Helper Utilities
   // -----------------------------------------
   function showToast(message, duration = 3500) {
+    if (!toastEl) return;
     toastText.textContent = message;
     toastEl.classList.remove('hidden');
-    setTimeout(() => {
-      toastEl.classList.add('hidden');
-    }, duration);
+    setTimeout(() => toastEl.classList.add('hidden'), duration);
   }
+
+  function formatSec(seconds) {
+    const s = Math.floor(seconds);
+    const m = Math.floor(s / 60);
+    const rem = s % 60;
+    return `${m}:${rem.toString().padStart(2, '0')}`;
+  }
+
+  // -----------------------------------------
+  // Hardware Acceleration Status Check
+  // -----------------------------------------
+  async function checkHardwareStatus() {
+    try {
+      const res = await fetch('/api/hardware-status');
+      const data = await res.json();
+      if (data.success && data.hardware) {
+        const hw = data.hardware;
+        hwName.textContent = `${hw.name} (${hw.encoder})`;
+      }
+    } catch (e) {
+      hwName.textContent = "CPU Accelerated";
+    }
+  }
+  checkHardwareStatus();
 
   // -----------------------------------------
   // Tab Switching
@@ -101,497 +164,508 @@ document.addEventListener('DOMContentLoaded', () => {
       tabContents.forEach(c => c.classList.remove('active'));
 
       btn.classList.add('active');
-      const targetId = btn.dataset.tab;
-      document.getElementById(targetId).classList.add('active');
+      const targetTab = document.getElementById(btn.getAttribute('data-tab'));
+      if (targetTab) targetTab.classList.add('active');
 
-      if (targetId === 'tab-library') {
+      if (btn.getAttribute('data-tab') === 'tab-library') {
         loadMediaVault();
       }
     });
   });
 
-  // -----------------------------------------
-  // Input Handling (Clear / Paste)
-  // -----------------------------------------
-  videoUrlInput.addEventListener('input', () => {
-    if (videoUrlInput.value.trim().length > 0) {
-      btnClearUrl.classList.add('show');
-    } else {
-      btnClearUrl.classList.remove('show');
-    }
-  });
-
-  btnClearUrl.addEventListener('click', () => {
-    videoUrlInput.value = '';
-    btnClearUrl.classList.remove('show');
-    videoDetailsCard.classList.add('hidden');
-    videoUrlInput.focus();
-  });
+  if (btnClearShortsUrl) {
+    btnClearShortsUrl.addEventListener('click', () => {
+      shortsUrlInput.value = '';
+      shortsUrlInput.focus();
+    });
+  }
 
   // -----------------------------------------
-  // Fetch Video Info (Inspect)
+  // PILLAR 1 & 2: Fast AI Scan & Clip Scoring
   // -----------------------------------------
-  btnInspectUrl.addEventListener('click', async () => {
-    const url = videoUrlInput.value.trim();
+  btnAnalyzeVideo.addEventListener('click', async () => {
+    const url = shortsUrlInput.value.trim();
     if (!url) {
-      showToast('⚠️ Please enter a YouTube URL');
-      videoUrlInput.focus();
-      return;
-    }
-
-    btnInspectUrl.classList.add('loading');
-    videoDetailsCard.classList.add('hidden');
-    dlCompleteCard.classList.add('hidden');
-    dlProgressContainer.classList.add('hidden');
-
-    try {
-      const response = await fetch('/api/info', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url })
-      });
-      const data = await response.json();
-
-      if (!data.success) {
-        throw new Error(data.error || 'Failed to fetch video details.');
-      }
-
-      currentVideoInfo = data.data;
-      renderVideoDetails(currentVideoInfo);
-      videoDetailsCard.classList.remove('hidden');
-      videoDetailsCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-      showToast('✅ Video details fetched successfully!');
-    } catch (err) {
-      showToast(`❌ Error: ${err.message}`);
-    } finally {
-      btnInspectUrl.classList.remove('loading');
-    }
-  });
-
-  // Also pre-populate shorts URL input if typed
-  videoUrlInput.addEventListener('change', () => {
-    if (!shortsUrlInput.value) {
-      shortsUrlInput.value = videoUrlInput.value;
-    }
-  });
-
-  // -----------------------------------------
-  // Render Video Details & Resolutions
-  // -----------------------------------------
-  function renderVideoDetails(info) {
-    metaThumb.src = info.thumbnail || '';
-    metaDuration.textContent = info.duration_formatted;
-    metaTitle.textContent = info.title;
-    metaUploader.textContent = info.uploader;
-    metaViews.textContent = `${info.views} views`;
-    metaDesc.textContent = info.description || 'No description provided.';
-
-    // Populate Resolutions
-    resolutionsContainer.innerHTML = '';
-    const resolutions = info.resolutions || [];
-
-    resolutions.forEach((res, index) => {
-      const card = document.createElement('div');
-      card.className = `res-card ${index === 0 ? 'active' : ''}`;
-      card.dataset.height = res.height;
-
-      card.innerHTML = `
-        <span class="res-badge">${res.tag}</span>
-        <div class="res-label">${res.label}</div>
-        <div class="res-specs">
-          <span>${res.fps ? `${res.fps} FPS` : '60 FPS'}</span>
-          <span>${res.size_formatted}</span>
-        </div>
-      `;
-
-      card.addEventListener('click', () => {
-        document.querySelectorAll('.res-card').forEach(c => c.classList.remove('active'));
-        card.classList.add('active');
-        selectedResolution = parseInt(res.height);
-        updateDownloadActionLabel();
-      });
-
-      resolutionsContainer.appendChild(card);
-    });
-
-    if (resolutions.length > 0) {
-      selectedResolution = resolutions[0].height;
-    }
-
-    updateDownloadActionLabel();
-  }
-
-  // -----------------------------------------
-  // Mode Switcher (Video vs Audio)
-  // -----------------------------------------
-  modeVideoBtn.addEventListener('click', () => {
-    selectedMode = 'video';
-    modeVideoBtn.classList.add('active');
-    modeAudioBtn.classList.remove('active');
-    videoOptionsPanel.classList.remove('hidden');
-    audioOptionsPanel.classList.add('hidden');
-    updateDownloadActionLabel();
-  });
-
-  modeAudioBtn.addEventListener('click', () => {
-    selectedMode = 'audio';
-    modeAudioBtn.classList.add('active');
-    modeVideoBtn.classList.remove('active');
-    audioOptionsPanel.classList.remove('hidden');
-    videoOptionsPanel.classList.add('hidden');
-    updateDownloadActionLabel();
-  });
-
-  // Video Format Chips
-  document.querySelectorAll('#video-formats .chip').forEach(chip => {
-    chip.addEventListener('click', () => {
-      document.querySelectorAll('#video-formats .chip').forEach(c => c.classList.remove('active'));
-      chip.classList.add('active');
-      selectedVideoFormat = chip.dataset.val;
-      updateDownloadActionLabel();
-    });
-  });
-
-  // Audio Format Chips
-  document.querySelectorAll('#audio-formats .chip').forEach(chip => {
-    chip.addEventListener('click', () => {
-      document.querySelectorAll('#audio-formats .chip').forEach(c => c.classList.remove('active'));
-      chip.classList.add('active');
-      selectedAudioFormat = chip.dataset.val;
-
-      // Bitrate options only make sense for lossy formats like MP3
-      const bitrateRow = document.getElementById('audio-bitrate-row');
-      if (['wav', 'flac'].includes(selectedAudioFormat)) {
-        bitrateRow.style.opacity = '0.4';
-        bitrateRow.style.pointerEvents = 'none';
-      } else {
-        bitrateRow.style.opacity = '1';
-        bitrateRow.style.pointerEvents = 'auto';
-      }
-
-      updateDownloadActionLabel();
-    });
-  });
-
-  // Audio Bitrate Chips
-  document.querySelectorAll('#audio-bitrates .chip').forEach(chip => {
-    chip.addEventListener('click', () => {
-      document.querySelectorAll('#audio-bitrates .chip').forEach(c => c.classList.remove('active'));
-      chip.classList.add('active');
-      selectedAudioQuality = chip.dataset.val;
-      updateDownloadActionLabel();
-    });
-  });
-
-  function updateDownloadActionLabel() {
-    if (selectedMode === 'video') {
-      btnDownloadLabel.textContent = `Download ${selectedResolution}p (${selectedVideoFormat.toUpperCase()}) Video`;
-    } else {
-      const bitStr = ['wav', 'flac'].includes(selectedAudioFormat) ? 'Lossless' : selectedAudioQuality;
-      btnDownloadLabel.textContent = `Extract ${selectedAudioFormat.toUpperCase()} Audio (${bitStr})`;
-    }
-  }
-
-  // -----------------------------------------
-  // Execute Download & Poll Progress
-  // -----------------------------------------
-  btnStartDownload.addEventListener('click', async () => {
-    const url = videoUrlInput.value.trim();
-    if (!url) {
-      showToast('⚠️ Please enter a URL first.');
-      return;
-    }
-
-    btnStartDownload.disabled = true;
-    dlCompleteCard.classList.add('hidden');
-    dlProgressContainer.classList.remove('hidden');
-    dlProgressBar.style.width = '0%';
-    dlStatusText.textContent = 'Initializing...';
-    dlSpeed.textContent = '- MB/s';
-    dlEta.textContent = 'ETA: -';
-    dlSize.textContent = '0 / 0 MB';
-
-    try {
-      const payload = {
-        url,
-        type: selectedMode,
-        resolution: selectedResolution,
-        video_format: selectedVideoFormat,
-        audio_format: selectedAudioFormat,
-        audio_quality: selectedAudioQuality
-      };
-
-      const res = await fetch('/api/download', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      const data = await res.json();
-
-      if (!data.success) {
-        throw new Error(data.error || 'Failed to start download.');
-      }
-
-      const jobId = data.job_id;
-      pollDownloadJob(jobId);
-    } catch (err) {
-      showToast(`❌ Download Error: ${err.message}`);
-      btnStartDownload.disabled = false;
-      dlProgressContainer.classList.add('hidden');
-    }
-  });
-
-  function pollDownloadJob(jobId) {
-    const interval = setInterval(async () => {
-      try {
-        const res = await fetch(`/api/job/${jobId}`);
-        const data = await res.json();
-
-        if (!data.success || !data.job) return;
-
-        const job = data.job;
-        if (job.status === 'downloading' || job.status === 'processing') {
-          const pct = Math.max(5, Math.min(99, job.percent || 10));
-          dlProgressBar.style.width = `${pct}%`;
-          dlStatusText.textContent = job.status === 'processing' ? 'Merging Video & Audio...' : 'Downloading streams...';
-          dlSpeed.textContent = job.speed_str || '-';
-          dlEta.textContent = `ETA: ${job.eta_str || '-'}`;
-          dlSize.textContent = `${job.downloaded_str || '0 MB'} / ${job.total_str || '0 MB'}`;
-        } else if (job.status === 'completed') {
-          clearInterval(interval);
-          dlProgressBar.style.width = '100%';
-          dlStatusText.textContent = 'Completed!';
-          btnStartDownload.disabled = false;
-
-          setTimeout(() => {
-            renderDownloadResult(job.result);
-          }, 600);
-        } else if (job.status === 'failed') {
-          clearInterval(interval);
-          btnStartDownload.disabled = false;
-          showToast(`❌ Download Failed: ${job.error || 'Unknown error'}`);
-          dlStatusText.textContent = 'Failed';
-        }
-      } catch (e) {
-        console.error('Polling error', e);
-      }
-    }, 1000);
-  }
-
-  function renderDownloadResult(result) {
-    dlProgressContainer.classList.add('hidden');
-    dlCompleteCard.classList.remove('hidden');
-
-    dlResultTitle.textContent = `${result.title} • ${result.size_str}`;
-    const mediaUrl = `/media/downloads/${result.filename}`;
-    const directDlUrl = `/download_media/downloads/${result.filename}`;
-
-    btnSaveFile.href = directDlUrl;
-    btnSaveFile.setAttribute('download', result.filename);
-
-    dlPlayerContainer.innerHTML = '';
-    if (result.media_type === 'audio') {
-      const audio = document.createElement('audio');
-      audio.controls = true;
-      audio.src = mediaUrl;
-      dlPlayerContainer.appendChild(audio);
-    } else {
-      const video = document.createElement('video');
-      video.controls = true;
-      video.playsInline = true;
-      video.src = mediaUrl;
-      dlPlayerContainer.appendChild(video);
-    }
-
-    dlCompleteCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    showToast('🎉 Download completed! File ready.');
-  }
-
-  btnDownloadAnother.addEventListener('click', () => {
-    dlCompleteCard.classList.add('hidden');
-    videoUrlInput.value = '';
-    videoDetailsCard.classList.add('hidden');
-    videoUrlInput.focus();
-  });
-
-  // -----------------------------------------
-  // AI Shorts Generator Logic
-  // -----------------------------------------
-  // Shorts Clip count selector
-  document.querySelectorAll('#shorts-num-clips .chip').forEach(chip => {
-    chip.addEventListener('click', () => {
-      document.querySelectorAll('#shorts-num-clips .chip').forEach(c => c.classList.remove('active'));
-      chip.classList.add('active');
-      selectedShortsNumClips = parseInt(chip.dataset.val);
-    });
-  });
-
-  // Shorts Caption Style selector
-  document.querySelectorAll('#shorts-caption-style .chip').forEach(chip => {
-    chip.addEventListener('click', () => {
-      document.querySelectorAll('#shorts-caption-style .chip').forEach(c => c.classList.remove('active'));
-      chip.classList.add('active');
-      selectedCaptionStyle = chip.dataset.val;
-    });
-  });
-
-  btnGenerateShorts.addEventListener('click', async () => {
-    const url = shortsUrlInput.value.trim() || videoUrlInput.value.trim();
-    if (!url) {
-      showToast('⚠️ Please enter a YouTube video URL for shorts.');
+      showToast('Please paste a YouTube video URL');
       shortsUrlInput.focus();
       return;
     }
 
-    btnGenerateShorts.disabled = true;
-    shortsShowcaseCard.classList.add('hidden');
-    shortsPipelineCard.classList.remove('hidden');
-    shortsPercentText.textContent = '5%';
-    shortsCurrentMsg.textContent = 'Initializing AI Shorts pipeline...';
+    // Get selected rights declaration
+    const rightsRadio = document.querySelector('input[name="rights-declaration"]:checked');
+    const rightsValue = rightsRadio ? rightsRadio.value : 'own';
 
-    // Reset step UI
-    for (let i = 1; i <= 6; i++) {
-      const stepEl = document.getElementById(`step-${i}`);
-      stepEl.classList.remove('active', 'completed');
-    }
-    document.getElementById('step-1').classList.add('active');
+    // UI Loading state
+    btnAnalyzeVideo.disabled = true;
+    analyzeSpinner.style.display = 'block';
+    analysisMetaCard.classList.add('hidden');
+    clipsCuratorCard.classList.add('hidden');
+    renderedShowcaseCard.classList.add('hidden');
+    timingsBanner.classList.remove('hidden');
+    tDl.textContent = 'Ingesting...';
+    tTr.textContent = 'Waiting...';
+    tSel.textContent = 'Waiting...';
+    tRnd.textContent = '-';
+    tTotal.textContent = '-';
+
+    showToast('Starting audio-first scan & virality analysis...');
 
     try {
-      const res = await fetch('/api/shorts', {
+      const res = await fetch('/api/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          url,
-          num_clips: selectedShortsNumClips,
-          caption_style: selectedCaptionStyle
-        })
+        body: JSON.stringify({ url: url, rights: rightsValue })
       });
-      const data = await res.json();
 
-      if (!data.success) {
-        throw new Error(data.error || 'Failed to start AI Shorts job.');
+      const json = await res.json();
+      if (!json.success) {
+        throw new Error(json.error || 'Failed to analyze video');
       }
 
-      pollShortsJob(data.job_id);
+      currentAnalysis = json.data;
+      displayAnalysisResults(currentAnalysis);
+      showToast('AI virality analysis complete!');
     } catch (err) {
-      showToast(`❌ Shorts Error: ${err.message}`);
-      btnGenerateShorts.disabled = false;
-      shortsPipelineCard.classList.add('hidden');
+      showToast(`Error: ${err.message}`);
+    } finally {
+      btnAnalyzeVideo.disabled = false;
+      analyzeSpinner.style.display = 'none';
     }
   });
 
-  function pollShortsJob(jobId) {
-    const interval = setInterval(async () => {
-      try {
-        const res = await fetch(`/api/job/${jobId}`);
-        const data = await res.json();
+  function displayAnalysisResults(data) {
+    // 1. Timings profiling
+    const t = data.timings || {};
+    tDl.textContent = `${t.download_ms || 0}ms`;
+    tTr.textContent = `${t.transcribe_ms || 0}ms`;
+    tSel.textContent = `${t.select_ms || 0}ms`;
+    tRnd.textContent = '-';
+    tTotal.textContent = `${((t.total_ms || 0) / 1000).toFixed(1)}s`;
 
-        if (!data.success || !data.job) return;
+    // 2. Video Metadata & Rights Warning
+    analysisMetaCard.classList.remove('hidden');
+    analysisThumb.src = data.thumbnail || '';
+    analysisTitle.textContent = data.title || 'YouTube Video';
+    analysisChannel.textContent = data.channel || 'Creator';
+    analysisDuration.textContent = formatSec(data.duration || 0);
 
-        const job = data.job;
-        if (job.status === 'processing') {
-          const step = job.step || 1;
-          const pct = Math.max(5, Math.min(99, job.percent || 15));
-          shortsPercentText.textContent = `${pct}%`;
-          shortsCurrentMsg.textContent = job.message || 'Processing...';
+    const rights = data.rights || {};
+    rightsBadge.innerHTML = `<i class="fa-solid fa-shield"></i> ${rights.license_detected || 'Standard'}`;
+    if (rights.risk_level === 'HIGH') {
+      rightsMsg.innerHTML = `<strong>⚠️ High Content-ID Risk:</strong> ${rights.risk_reasons.join(' ')}`;
+      rightsMsg.parentElement.style.borderColor = '#ef4444';
+      rightsMsg.parentElement.style.color = '#f87171';
+    } else if (rights.risk_level === 'MEDIUM') {
+      rightsMsg.innerHTML = `<strong>ℹ️ Advisory:</strong> ${rights.risk_reasons.join(' ')}`;
+      rightsMsg.parentElement.style.borderColor = '#f59e0b';
+      rightsMsg.parentElement.style.color = '#fbbf24';
+    } else {
+      rightsMsg.innerHTML = `<strong>✅ Clear:</strong> ${rights.license_detected} detected. Attribution template prepared.`;
+      rightsMsg.parentElement.style.borderColor = '#10b981';
+      rightsMsg.parentElement.style.color = '#34d399';
+    }
 
-          const pBar = document.getElementById('shorts-progress-bar');
-          if (pBar) {
-            pBar.style.width = `${pct}%`;
-          }
+    // 3. Populate Candidate Cards
+    candidatesGrid.innerHTML = '';
+    const candidates = data.candidates || [];
 
-          for (let i = 1; i <= 6; i++) {
-            const stepEl = document.getElementById(`step-${i}`);
-            if (i < step) {
-              stepEl.classList.add('completed');
-              stepEl.classList.remove('active');
-            } else if (i === step) {
-              stepEl.classList.add('active');
-              stepEl.classList.remove('completed');
-            } else {
-              stepEl.classList.remove('active', 'completed');
-            }
-          }
-        } else if (job.status === 'completed') {
-          clearInterval(interval);
-          shortsPercentText.textContent = '100%';
-          const pBar = document.getElementById('shorts-progress-bar');
-          if (pBar) pBar.style.width = '100%';
-          shortsCurrentMsg.textContent = 'AI Shorts Pack Ready! 🚀';
-          for (let i = 1; i <= 6; i++) {
-            document.getElementById(`step-${i}`).classList.add('completed');
-          }
-          btnGenerateShorts.disabled = false;
+    if (candidates.length === 0) {
+      candidatesGrid.innerHTML = `<div class="empty-state">No clips found matching virality criteria.</div>`;
+      clipsCuratorCard.classList.remove('hidden');
+      return;
+    }
 
-          setTimeout(() => {
-            renderShortsShowcase(job.result);
-          }, 800);
-        } else if (job.status === 'failed') {
-          clearInterval(interval);
-          btnGenerateShorts.disabled = false;
-          showToast(`❌ AI Shorts Failed: ${job.error || 'Pipeline error'}`);
-          shortsCurrentMsg.textContent = `Failed: ${job.error}`;
-        }
-      } catch (e) {
-        console.error('Shorts polling error', e);
-      }
-    }, 1500);
-  }
-
-  function renderShortsShowcase(result) {
-    shortsPipelineCard.classList.add('hidden');
-    shortsShowcaseCard.classList.remove('hidden');
-
-    showcaseTitle.textContent = result.title || 'AI Generated Shorts';
-    showcaseHashtags.textContent = result.hashtags || '#shorts #viral #trending';
-    btnDownloadZip.href = `/download_media/shorts/${result.job_id}/shorts.zip`;
-
-    shortsClipsGrid.innerHTML = '';
-    const clips = result.clips || [];
-
-    clips.forEach(clip => {
+    candidates.forEach((cand, idx) => {
       const card = document.createElement('div');
-      card.className = 'short-card';
-
-      const mediaUrl = `/media/shorts/${result.job_id}/${clip.filename}`;
-      const downloadUrl = `/download_media/shorts/${result.job_id}/${clip.filename}`;
+      card.className = `candidate-card ${idx === 0 ? 'active' : ''}`;
+      card.dataset.index = idx;
 
       card.innerHTML = `
-        <div class="short-video-wrapper">
-          <span class="short-score-pill">🔥 Score: ${clip.score}/100</span>
-          <video src="${mediaUrl}" controls playsinline preload="metadata"></video>
+        <div class="candidate-top-row">
+          <div class="virality-badge"><i class="fa-solid fa-fire"></i> ${cand.virality_score}/100 VIRAL</div>
+          <span class="clip-duration-tag">${cand.duration}s</span>
         </div>
-        <div class="short-info">
-          <div>
-            <div class="short-title">Clip #${clip.clip_id}: ${clip.reason}</div>
-            <div class="short-meta-row">
-              <span><i class="fa-solid fa-clock"></i> ${clip.duration}</span>
-              <span>${clip.start}s - ${clip.end}s</span>
-            </div>
+        <div class="candidate-hook">"${cand.hook}"</div>
+        <div class="candidate-reason"><i class="fa-solid fa-bolt"></i> ${cand.reason}</div>
+        <div class="scores-breakdown">
+          <div class="score-row">
+            <span>Hook Strength</span>
+            <span>${cand.scores.hook}/100</span>
           </div>
-          <a href="${downloadUrl}" class="btn-short-download" download="${clip.filename}">
-            <i class="fa-solid fa-download"></i> Save Short (MP4)
-          </a>
+          <div class="score-bar-bg"><div class="score-bar-fill" style="width: ${cand.scores.hook}%;"></div></div>
+
+          <div class="score-row" style="margin-top: 4px;">
+            <span>Emotional Peak</span>
+            <span>${cand.scores.emotion}/100</span>
+          </div>
+          <div class="score-bar-bg"><div class="score-bar-fill" style="width: ${cand.scores.emotion}%;"></div></div>
+
+          <div class="score-row" style="margin-top: 4px;">
+            <span>Retention Potential</span>
+            <span>${cand.scores.retention}/100</span>
+          </div>
+          <div class="score-bar-bg"><div class="score-bar-fill" style="width: ${cand.scores.retention}%;"></div></div>
         </div>
       `;
 
-      shortsClipsGrid.appendChild(card);
+      card.addEventListener('click', () => {
+        document.querySelectorAll('.candidate-card').forEach(c => c.classList.remove('active'));
+        card.classList.add('active');
+        selectCandidate(cand, idx);
+      });
+
+      candidatesGrid.appendChild(card);
     });
 
-    shortsShowcaseCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    showToast('🔥 AI Shorts Generated Successfully!');
+    clipsCuratorCard.classList.remove('hidden');
+    // Select first candidate by default
+    selectCandidate(candidates[0], 0);
   }
 
-  // Copy hashtags button
-  btnCopyHashtags.addEventListener('click', () => {
-    const text = showcaseHashtags.textContent;
-    navigator.clipboard.writeText(text).then(() => {
-      showToast('📋 Hashtags copied to clipboard!');
+  function selectCandidate(cand, idx) {
+    selectedCandidate = cand;
+    selectedClipLabel.textContent = `Clip #${idx + 1} (${cand.virality_score}/100 Viral)`;
+
+    // Configure Trim Sliders
+    const maxDur = currentAnalysis.duration || 600;
+    sliderStart.max = maxDur;
+    sliderEnd.max = maxDur;
+
+    sliderStart.value = cand.start;
+    sliderEnd.value = cand.end;
+
+    updateTrimLabels();
+  }
+
+  // -----------------------------------------
+  // Trim Range Sliders
+  // -----------------------------------------
+  function updateTrimLabels() {
+    let startVal = parseFloat(sliderStart.value);
+    let endVal = parseFloat(sliderEnd.value);
+
+    if (endVal <= startVal + 5) {
+      endVal = startVal + 5;
+      sliderEnd.value = endVal;
+    }
+
+    lblStartTime.textContent = formatSec(startVal);
+    lblEndTime.textContent = formatSec(endVal);
+    lblDuration.textContent = `${(endVal - startVal).toFixed(1)}s`;
+  }
+
+  sliderStart.addEventListener('input', () => {
+    let startVal = parseFloat(sliderStart.value);
+    let endVal = parseFloat(sliderEnd.value);
+    if (startVal >= endVal - 5) {
+      sliderStart.value = endVal - 5;
+    }
+    updateTrimLabels();
+  });
+
+  sliderEnd.addEventListener('input', () => {
+    let startVal = parseFloat(sliderStart.value);
+    let endVal = parseFloat(sliderEnd.value);
+    if (endVal <= startVal + 5) {
+      sliderEnd.value = startVal + 5;
+    }
+    updateTrimLabels();
+  });
+
+  // Style preset buttons
+  styleCards.forEach(card => {
+    card.addEventListener('click', () => {
+      styleCards.forEach(c => c.classList.remove('active'));
+      card.classList.add('active');
+      selectedStyle = card.getAttribute('data-style');
     });
   });
 
   // -----------------------------------------
-  // Media Vault (Library)
+  // PILLAR 1, 3 & 6: High-Speed Render & SSE
+  // -----------------------------------------
+  btnRenderShort.addEventListener('click', async () => {
+    if (!currentAnalysis || !selectedCandidate) {
+      showToast('Please analyze a video and pick a clip first');
+      return;
+    }
+
+    const url = shortsUrlInput.value.trim();
+    const startSec = parseFloat(sliderStart.value);
+    const endSec = parseFloat(sliderEnd.value);
+    const watermarkText = inputWatermark.value.trim() || null;
+    const progressBar = chkProgressBar.checked;
+
+    btnRenderShort.disabled = true;
+    renderProgressCard.classList.remove('hidden');
+    renderedShowcaseCard.classList.add('hidden');
+    renderProgressFill.style.width = '5%';
+    renderPct.textContent = '5%';
+    renderStatusMsg.textContent = 'Submitting render job to GPU worker...';
+
+    showToast('GPU single-pass render started...');
+
+    try {
+      const res = await fetch('/api/render-clip', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          url: url,
+          start_sec: startSec,
+          end_sec: endSec,
+          clip_text: selectedCandidate.text,
+          video_id: currentAnalysis.video_id,
+          video_title: currentAnalysis.title,
+          style_name: selectedStyle,
+          progress_bar: progressBar,
+          watermark: watermarkText
+        })
+      });
+
+      const json = await res.json();
+      if (!json.success) {
+        throw new Error(json.error || 'Failed to start render');
+      }
+
+      const jobId = json.job_id;
+      listenToRenderProgress(jobId);
+    } catch (err) {
+      showToast(`Error: ${err.message}`);
+      btnRenderShort.disabled = false;
+      renderProgressCard.classList.add('hidden');
+    }
+  });
+
+  function listenToRenderProgress(jobId) {
+    if (activeEventSource) {
+      activeEventSource.close();
+    }
+
+    activeEventSource = new EventSource(`/api/stream/${jobId}`);
+
+    activeEventSource.onmessage = (e) => {
+      try {
+        const data = JSON.parse(e.data);
+        const pct = data.progress || 0;
+        renderProgressFill.style.width = `${pct}%`;
+        renderPct.textContent = `${pct}%`;
+        renderStatusMsg.textContent = data.message || 'Processing...';
+
+        if (data.status === 'completed') {
+          activeEventSource.close();
+          btnRenderShort.disabled = false;
+          renderProgressCard.classList.add('hidden');
+          displayRenderedShort(data.result);
+          showToast('Short rendered successfully in record time!');
+        } else if (data.status === 'failed') {
+          activeEventSource.close();
+          btnRenderShort.disabled = false;
+          renderProgressCard.classList.add('hidden');
+          showToast(`Render failed: ${data.error || data.message}`);
+        }
+      } catch (err) {
+        console.error('SSE Parse error', err);
+      }
+    };
+
+    activeEventSource.onerror = (err) => {
+      console.warn('SSE connection closed or re-connecting...');
+    };
+  }
+
+  function displayRenderedShort(result) {
+    renderedShowcaseCard.classList.remove('hidden');
+    renderStatTime.textContent = `${result.render_time_sec || '-'}s`;
+    renderStatSize.textContent = `${result.file_size_mb || '-'} MB`;
+
+    // Video Player
+    shortVideoPlayer.src = result.video_url;
+    btnDownloadShort.href = result.video_url;
+
+    // Update Stage Profiling banner
+    if (result.timings) {
+      tRnd.textContent = `${result.timings.render_ms || 0}ms`;
+      tTotal.textContent = `${((result.timings.total_ms || 0) / 1000).toFixed(1)}s`;
+    }
+
+    // Publishing Hub (Pillar 5)
+    const pub = result.publishing || {};
+    abTitlesList.innerHTML = '';
+    (pub.titles_ab || []).forEach(title => {
+      const item = document.createElement('div');
+      item.className = 'ab-title-item';
+      item.innerHTML = `<span>${title}</span> <i class="fa-regular fa-copy"></i>`;
+      item.addEventListener('click', () => {
+        navigator.clipboard.writeText(title);
+        showToast('Title copied to clipboard!');
+      });
+      abTitlesList.appendChild(item);
+    });
+
+    pubDescription.value = pub.description || '';
+
+    // Scroll smoothly to preview
+    renderedShowcaseCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  if (btnCopyDesc) {
+    btnCopyDesc.addEventListener('click', () => {
+      navigator.clipboard.writeText(pubDescription.value);
+      showToast('Description & tags copied!');
+    });
+  }
+
+  // -----------------------------------------
+  // TRADITIONAL DOWNLOADER TAB
+  // -----------------------------------------
+  if (btnClearUrl) {
+    btnClearUrl.addEventListener('click', () => {
+      videoUrlInput.value = '';
+      videoUrlInput.focus();
+    });
+  }
+
+  if (btnInspectUrl) {
+    btnInspectUrl.addEventListener('click', async () => {
+      const url = videoUrlInput.value.trim();
+      if (!url) {
+        showToast('Please enter a YouTube link');
+        return;
+      }
+
+      btnInspectUrl.disabled = true;
+      inspectSpinner.style.display = 'block';
+
+      try {
+        const res = await fetch('/api/info', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url })
+        });
+        const json = await res.json();
+        if (!json.success) throw new Error(json.error || 'Failed to inspect link');
+
+        currentVideoInfo = json.data;
+        renderVideoDetails(currentVideoInfo);
+      } catch (e) {
+        showToast(`Error: ${e.message}`);
+      } finally {
+        btnInspectUrl.disabled = false;
+        inspectSpinner.style.display = 'none';
+      }
+    });
+  }
+
+  function renderVideoDetails(info) {
+    videoDetailsCard.classList.remove('hidden');
+    metaThumb.src = info.thumbnail || '';
+    metaDuration.textContent = formatSec(info.duration || 0);
+    metaTitle.textContent = info.title || 'Video Title';
+    metaUploader.textContent = info.uploader || 'Uploader';
+    metaViews.textContent = `${(info.view_count || 0).toLocaleString()} views`;
+    metaDesc.textContent = info.description || '';
+
+    // Resolutions
+    resolutionsContainer.innerHTML = '';
+    const formats = info.formats || [];
+    formats.forEach((fmt, i) => {
+      const chip = document.createElement('button');
+      chip.className = `chip ${i === 0 ? 'active' : ''}`;
+      chip.textContent = `${fmt.height}p`;
+      chip.addEventListener('click', () => {
+        document.querySelectorAll('#resolutions-container .chip').forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+        selectedResolution = fmt.height;
+      });
+      resolutionsContainer.appendChild(chip);
+    });
+
+    videoDetailsCard.scrollIntoView({ behavior: 'smooth' });
+  }
+
+  if (modeVideoBtn && modeAudioBtn) {
+    modeVideoBtn.addEventListener('click', () => {
+      modeVideoBtn.classList.add('active');
+      modeAudioBtn.classList.remove('active');
+      videoOptionsPanel.classList.remove('hidden');
+      audioOptionsPanel.classList.add('hidden');
+      selectedMode = 'video';
+    });
+
+    modeAudioBtn.addEventListener('click', () => {
+      modeAudioBtn.classList.add('active');
+      modeVideoBtn.classList.remove('active');
+      audioOptionsPanel.classList.remove('hidden');
+      videoOptionsPanel.classList.add('hidden');
+      selectedMode = 'audio';
+    });
+  }
+
+  if (btnStartDownload) {
+    btnStartDownload.addEventListener('click', async () => {
+      const url = videoUrlInput.value.trim();
+      if (!url) return;
+
+      btnStartDownload.disabled = true;
+      dlProgressContainer.classList.remove('hidden');
+      dlProgressBar.style.width = '10%';
+      dlStatusText.textContent = 'Initializing download...';
+
+      try {
+        const res = await fetch('/api/download', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            url,
+            type: selectedMode,
+            resolution: selectedResolution,
+            video_format: selectedVideoFormat,
+            audio_format: selectedAudioFormat,
+            audio_quality: selectedAudioQuality
+          })
+        });
+        const json = await res.json();
+        if (!json.success) throw new Error(json.error || 'Failed to start download');
+
+        pollDownloadJob(json.job_id);
+      } catch (e) {
+        showToast(`Error: ${e.message}`);
+        btnStartDownload.disabled = false;
+      }
+    });
+  }
+
+  function pollDownloadJob(jobId) {
+    const timer = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/job/${jobId}`);
+        const json = await res.json();
+        if (!json.success) return;
+
+        const job = json.job;
+        dlProgressBar.style.width = `${job.percent}%`;
+        dlStatusText.textContent = job.message || 'Downloading...';
+        if (job.speed_str) dlSpeed.textContent = job.speed_str;
+        if (job.total_str) dlSize.textContent = `${job.downloaded_str || '0'} / ${job.total_str}`;
+
+        if (job.status === 'completed') {
+          clearInterval(timer);
+          btnStartDownload.disabled = false;
+          dlStatusText.textContent = 'Completed!';
+          showToast('Download finished successfully!');
+        } else if (job.status === 'failed') {
+          clearInterval(timer);
+          btnStartDownload.disabled = false;
+          showToast(`Download failed: ${job.error}`);
+        }
+      } catch (e) {
+        // network retry
+      }
+    }, 1000);
+  }
+
+  // -----------------------------------------
+  // MEDIA VAULT
   // -----------------------------------------
   async function loadMediaVault() {
     try {
@@ -599,81 +673,55 @@ document.addEventListener('DOMContentLoaded', () => {
       const data = await res.json();
       if (!data.success) return;
 
-      const downloads = data.downloads || [];
-      const shortsPacks = data.shorts || [];
+      vaultCountBadge.textContent = (data.shorts.length + data.downloads.length).toString();
 
-      // Update badge count
-      vaultCountBadge.textContent = downloads.length + shortsPacks.length;
-
-      // Render Downloads
-      vaultDownloadsList.innerHTML = '';
-      if (downloads.length === 0) {
-        vaultDownloadsList.innerHTML = '<div class="empty-state">No downloaded media yet.</div>';
+      // Render Shorts list
+      vaultShortsList.innerHTML = '';
+      if (data.shorts.length === 0) {
+        vaultShortsList.innerHTML = `<div class="empty-state">No shorts generated yet. Run a Fast AI Scan in the Shorts Studio tab!</div>`;
       } else {
-        downloads.forEach(item => {
-          const row = document.createElement('div');
-          row.className = 'file-row';
-          const icon = item.type === 'video' ? 'fa-solid fa-file-video' : 'fa-solid fa-file-audio';
-
-          row.innerHTML = `
-            <div class="file-info">
-              <i class="${icon} file-icon"></i>
-              <div>
-                <div class="file-name" title="${item.filename}">${item.filename}</div>
-                <div class="file-size">${item.size} • ${item.modified}</div>
-              </div>
+        data.shorts.forEach(s => {
+          const item = document.createElement('div');
+          item.className = 'vault-item';
+          item.innerHTML = `
+            <div>
+              <strong>${s.title}</strong>
+              <div style="font-size: 0.8rem; color: var(--text-muted);">${s.clips.length} clip(s)</div>
             </div>
-            <div class="file-actions">
-              <a href="${item.url}" target="_blank" class="btn-icon" title="Preview / Play">
-                <i class="fa-solid fa-play"></i>
-              </a>
-              <a href="${item.download_url}" class="btn-icon" download title="Download">
-                <i class="fa-solid fa-download"></i>
-              </a>
-            </div>
+            <a href="${s.clips[0].download_url}" class="btn-primary btn-small" download>
+              <i class="fa-solid fa-download"></i> Download
+            </a>
           `;
-          vaultDownloadsList.appendChild(row);
+          vaultShortsList.appendChild(item);
         });
       }
 
-      // Render Shorts Packs
-      vaultShortsList.innerHTML = '';
-      if (shortsPacks.length === 0) {
-        vaultShortsList.innerHTML = '<div class="empty-state">No AI Shorts packages created yet.</div>';
+      // Render Downloads list
+      vaultDownloadsList.innerHTML = '';
+      if (data.downloads.length === 0) {
+        vaultDownloadsList.innerHTML = `<div class="empty-state">No downloads yet.</div>`;
       } else {
-        shortsPacks.forEach(pack => {
-          const row = document.createElement('div');
-          row.className = 'file-row';
-
-          row.innerHTML = `
-            <div class="file-info">
-              <i class="fa-solid fa-fire file-icon" style="color: var(--accent-pink);"></i>
-              <div>
-                <div class="file-name">${pack.title}</div>
-                <div class="file-size">${pack.clips.length} Clips • Job: ${pack.job_id}</div>
-              </div>
+        data.downloads.forEach(d => {
+          const item = document.createElement('div');
+          item.className = 'vault-item';
+          item.innerHTML = `
+            <div>
+              <strong>${d.filename}</strong>
+              <div style="font-size: 0.8rem; color: var(--text-muted);">${d.size} • ${d.type}</div>
             </div>
-            <div class="file-actions">
-              ${pack.zip_url ? `
-                <a href="${pack.zip_url}" class="btn-icon" download title="Download Full ZIP Bundle">
-                  <i class="fa-solid fa-file-zipper"></i>
-                </a>
-              ` : ''}
-            </div>
+            <a href="${d.download_url}" class="btn-primary btn-small" download>
+              <i class="fa-solid fa-download"></i> Download
+            </a>
           `;
-          vaultShortsList.appendChild(row);
+          vaultDownloadsList.appendChild(item);
         });
       }
     } catch (e) {
-      console.error('Failed to load library', e);
+      console.error('Vault load error', e);
     }
   }
 
-  btnRefreshVault.addEventListener('click', () => {
-    loadMediaVault();
-    showToast('🔄 Media Vault Refreshed');
-  });
-
-  // Initial Vault count load
-  loadMediaVault();
+  if (btnRefreshVault) {
+    btnRefreshVault.addEventListener('click', loadMediaVault);
+  }
 });

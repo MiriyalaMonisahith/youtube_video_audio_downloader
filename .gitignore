@@ -43,6 +43,8 @@ temp/*
 *.mkv
 *.zip
 *.srt
+*.ass
+cache/
 
 # Logs and databases
 *.log
