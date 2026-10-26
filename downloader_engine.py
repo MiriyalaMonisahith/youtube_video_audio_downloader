@@ -5,9 +5,12 @@ import time
 from typing import Dict, Any, Optional, Callable
 import yt_dlp
 
-OUTPUT_DIR = os.path.abspath("downloads")
-SHORTS_DIR = os.path.abspath("shorts")
-TEMP_DIR = os.path.abspath("temp")
+IS_VERCEL = os.environ.get("VERCEL") == "1"
+BASE_DIR = "/tmp" if IS_VERCEL else os.path.abspath(".")
+
+OUTPUT_DIR = os.path.join(BASE_DIR, "downloads")
+SHORTS_DIR = os.path.join(BASE_DIR, "shorts")
+TEMP_DIR = os.path.join(BASE_DIR, "temp")
 
 for d in [OUTPUT_DIR, SHORTS_DIR, TEMP_DIR]:
     os.makedirs(d, exist_ok=True)

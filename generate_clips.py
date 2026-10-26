@@ -15,10 +15,13 @@ from ai.clip_ranker import rank_clips
 from ai.hookdetector import boost_hook
 from ai.title_generator import generate_title
 from ai.hashtag_generator import generate_hashtags
+from downloader_engine import SHORTS_DIR, TEMP_DIR
 
 
-def download_youtube_video(url: str, output_path: str = "temp/video.mp4") -> str:
+def download_youtube_video(url: str, output_path: str = None) -> str:
     """Downloads a YouTube video to temp directory."""
+    if output_path is None:
+        output_path = os.path.join(TEMP_DIR, "video.mp4")
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     subprocess.run([
         "yt-dlp",
@@ -95,10 +98,10 @@ def main_pipeline(
     total_steps = 6
 
     # 1. Video Source Preparation
-    os.makedirs("temp", exist_ok=True)
+    os.makedirs(TEMP_DIR, exist_ok=True)
     if source_url_or_file.startswith("http://") or source_url_or_file.startswith("https://"):
         notify(1, total_steps, "Downloading source YouTube video...", 10)
-        video_path = os.path.abspath("temp/source_video.mp4")
+        video_path = os.path.join(TEMP_DIR, "source_video.mp4")
         download_youtube_video(source_url_or_file, video_path)
     else:
         video_path = os.path.abspath(source_url_or_file)
@@ -108,7 +111,7 @@ def main_pipeline(
 
     # Setup Job output folder
     job_id = datetime.now().strftime("%Y%m%d_%H%M%S")
-    output_dir = os.path.abspath(f"shorts/{job_id}")
+    output_dir = os.path.join(SHORTS_DIR, job_id)
     os.makedirs(output_dir, exist_ok=True)
 
     # 2. Extract Transcript with Whisper

@@ -1,7 +1,4 @@
-yt-dlp
 flask
-streamlit
-openai-whisper
-torch
+yt-dlp
 requests
 pillow
