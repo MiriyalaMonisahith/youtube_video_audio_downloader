@@ -1,0 +1,46 @@
+========================================================================
+⚡ VORTEX STUDIO - VIDEO DOWNLOADER & AI SHORTS GENERATOR
+========================================================================
+
+HOW TO RUN:
+
+OPTION 1: Modern Web Studio (RECOMMENDED - Premium Glassmorphism UI)
+--------------------------------------------------------------------
+Run in your terminal:
+    .\venv\Scripts\python web_server.py
+Then open your browser at:
+    http://localhost:5000
+
+
+OPTION 2: Streamlit Dashboard UI
+---------------------------------
+Run in your terminal:
+    .\venv\Scripts\streamlit run app.py
+Then open your browser at:
+    http://localhost:8501
+
+
+OPTION 3: Interactive Launcher
+------------------------------
+Run:
+    .\venv\Scripts\python run.py
+
+
+OPTION 4: Command Line
+-----------------------
+- Download full video with quality (default 1080p):
+    .\venv\Scripts\python Downloads_python/download_video.py "URL" 1080
+
+- Download audio only (MP3 320kbps):
+    .\venv\Scripts\python Downloads_python/download_video.py "URL" audio
+
+- Generate AI Shorts from CLI:
+    .\venv\Scripts\python generate_clips.py "URL"
+
+========================================================================
+FEATURES:
+- Video Downloader: 4K, 2K, 1080p, 720p, 480p, 360p with estimated sizes.
+- Audio Extractor: MP3 (320k, 256k, 192k, 128k), M4A, WAV, FLAC, OPUS.
+- AI Shorts Generator: Whisper transcription, hook detection, 9:16 vertical crop, animated styled subtitles, viral titles & hashtags, ZIP download pack.
+- Media Vault: In-browser playback and downloads library.
+========================================================================

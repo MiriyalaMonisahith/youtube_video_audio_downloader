@@ -1,0 +1,7 @@
+yt-dlp
+flask
+streamlit
+openai-whisper
+torch
+requests
+pillow

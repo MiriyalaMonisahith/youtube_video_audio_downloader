@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vortex Studio | Ultimate Video, Audio & AI Shorts Downloader</title>
+  <meta name="description" content="High-speed YouTube video downloader with custom quality resolutions, audio extraction, and AI-powered viral Shorts generator with animated subtitles.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Ambient Glow Backgrounds -->
+  <div class="ambient-glow glow-1"></div>
+  <div class="ambient-glow glow-2"></div>
+  <div class="ambient-glow glow-3"></div>
+
+  <div class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="brand-section">
+        <div class="brand-logo">
+          <i class="fa-solid fa-bolt-lightning"></i>
+        </div>
+        <div class="brand-text">
+          <h1>VORTEX <span>STUDIO</span></h1>
+          <p>Pro Video Downloader & AI Shorts Engine</p>
+        </div>
+      </div>
+
+      <!-- System Status Pills -->
+      <div class="system-status">
+        <div class="status-pill"><span class="dot active"></span> FFmpeg 9.0+</div>
+        <div class="status-pill"><span class="dot active"></span> yt-dlp Core</div>
+        <div class="status-pill"><span class="dot active"></span> Whisper AI</div>
+      </div>
+    </header>
+
+    <!-- Navigation Tabs -->
+    <nav class="tabs-nav" role="tablist">
+      <button class="tab-btn active" id="tab-btn-downloader" data-tab="tab-downloader">
+        <i class="fa-solid fa-cloud-arrow-down"></i>
+        <span>Video & Audio Downloader</span>
+        <div class="active-indicator"></div>
+      </button>
+      <button class="tab-btn" id="tab-btn-shorts" data-tab="tab-shorts">
+        <i class="fa-solid fa-fire"></i>
+        <span>AI Shorts Generator</span>
+        <span class="badge-pill">AI Powered</span>
+        <div class="active-indicator"></div>
+      </button>
+      <button class="tab-btn" id="tab-btn-library" data-tab="tab-library">
+        <i class="fa-solid fa-photo-film"></i>
+        <span>Media Vault</span>
+        <span class="badge-pill count-badge" id="vault-count">0</span>
+        <div class="active-indicator"></div>
+      </button>
+    </nav>
+
+    <!-- TAB 1: VIDEO & AUDIO DOWNLOADER -->
+    <main class="tab-content active" id="tab-downloader">
+      <!-- Search & Input Card -->
+      <section class="glass-card search-card">
+        <div class="input-group">
+          <span class="input-icon"><i class="fa-brands fa-youtube"></i></span>
+          <input type="text" id="video-url-input" placeholder="Paste YouTube link (e.g. https://www.youtube.com/watch?v=...)" autocomplete="off">
+          <button class="btn-clear" id="btn-clear-url" title="Clear input"><i class="fa-solid fa-xmark"></i></button>
+          <button class="btn-primary" id="btn-inspect-url">
+            <span class="btn-text"><i class="fa-solid fa-wand-magic-sparkles"></i> Fetch Info</span>
+            <div class="btn-spinner" id="inspect-spinner"></div>
+          </button>
+        </div>
+        <div class="input-hints">
+          <span><i class="fa-regular fa-circle-check"></i> Supports 4K, 1080p 60fps, 720p HD</span>
+          <span><i class="fa-regular fa-circle-check"></i> Lossless Audio & 320 kbps MP3</span>
+          <span><i class="fa-regular fa-circle-check"></i> Clean Audio/Video Merging</span>
+        </div>
+      </section>
+
+      <!-- Video Details & Quality Selection Card -->
+      <section class="glass-card details-card hidden" id="video-details-card">
+        <div class="video-preview-header">
+          <div class="thumbnail-wrapper">
+            <img id="meta-thumb" src="" alt="Thumbnail">
+            <span class="duration-badge" id="meta-duration">00:00</span>
+          </div>
+          <div class="meta-content">
+            <h2 id="meta-title">Video Title</h2>
+            <div class="meta-tags">
+              <span class="meta-pill"><i class="fa-solid fa-user-circle"></i> <span id="meta-uploader">Channel</span></span>
+              <span class="meta-pill"><i class="fa-solid fa-eye"></i> <span id="meta-views">0 views</span></span>
+            </div>
+            <p id="meta-desc" class="meta-description">Description text...</p>
+          </div>
+        </div>
+
+        <!-- Mode Toggle Switcher -->
+        <div class="mode-switcher-container">
+          <div class="mode-toggle">
+            <button class="mode-btn active" id="mode-video-btn" data-mode="video">
+              <i class="fa-solid fa-video"></i> Video Download (With Quality Options)
+            </button>
+            <button class="mode-btn" id="mode-audio-btn" data-mode="audio">
+              <i class="fa-solid fa-music"></i> Audio Only (Lossless / MP3)
+            </button>
+          </div>
+        </div>
+
+        <!-- VIDEO OPTIONS SECTION -->
+        <div class="options-panel" id="video-options-panel">
+          <div class="panel-section-title">
+            <i class="fa-solid fa-sliders"></i> Select Video Quality & Format
+          </div>
+          <div class="resolutions-grid" id="resolutions-container">
+            <!-- Dynamic resolution chips loaded here -->
+          </div>
+
+          <div class="format-select-row">
+            <label class="control-label"><i class="fa-solid fa-file-video"></i> Container Format:</label>
+            <div class="chip-group" id="video-formats">
+              <button class="chip active" data-val="mp4">MP4 (Recommended)</button>
+              <button class="chip" data-val="mkv">MKV (High Compatibility)</button>
+              <button class="chip" data-val="webm">WebM</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- AUDIO OPTIONS SECTION -->
+        <div class="options-panel hidden" id="audio-options-panel">
+          <div class="panel-section-title">
+            <i class="fa-solid fa-headphones-simple"></i> Select Audio Format & Bitrate
+          </div>
+          <div class="audio-formats-grid">
+            <div class="format-select-row">
+              <label class="control-label"><i class="fa-solid fa-compact-disc"></i> Audio Format:</label>
+              <div class="chip-group" id="audio-formats">
+                <button class="chip active" data-val="mp3">MP3</button>
+                <button class="chip" data-val="m4a">M4A (Apple AAC)</button>
+                <button class="chip" data-val="wav">WAV (Studio Master)</button>
+                <button class="chip" data-val="flac">FLAC (Audiophile Lossless)</button>
+                <button class="chip" data-val="opus">OPUS (Modern Efficient)</button>
+              </div>
+            </div>
+
+            <div class="format-select-row" id="audio-bitrate-row">
+              <label class="control-label"><i class="fa-solid fa-wave-square"></i> Audio Quality / Bitrate:</label>
+              <div class="chip-group" id="audio-bitrates">
+                <button class="chip active" data-val="320k">320 kbps (High Quality)</button>
+                <button class="chip" data-val="256k">256 kbps (Premium)</button>
+                <button class="chip" data-val="192k">192 kbps (Standard)</button>
+                <button class="chip" data-val="128k">128 kbps (Lightweight)</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Action Button -->
+        <div class="action-footer">
+          <button class="btn-download-action" id="btn-start-download">
+            <i class="fa-solid fa-cloud-arrow-down"></i>
+            <span id="btn-download-label">Download 1080p Video</span>
+          </button>
+        </div>
+
+        <!-- Download Progress Container -->
+        <div class="progress-container hidden" id="download-progress-container">
+          <div class="progress-header">
+            <div class="progress-status-badge" id="dl-status-badge">
+              <span class="pulse-ring"></span>
+              <span id="dl-status-text">Downloading...</span>
+            </div>
+            <div class="progress-metrics">
+              <span id="dl-speed">- MB/s</span>
+              <span class="sep">•</span>
+              <span id="dl-eta">ETA: -</span>
+              <span class="sep">•</span>
+              <span id="dl-size">0 / 0 MB</span>
+            </div>
+          </div>
+          <div class="progress-track">
+            <div class="progress-fill" id="dl-progress-bar" style="width: 0%;">
+              <div class="progress-shimmer"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Completion & Playback Box -->
+        <div class="completion-card hidden" id="download-complete-card">
+          <div class="completion-banner">
+            <i class="fa-solid fa-circle-check"></i>
+            <div>
+              <h3>Download Ready!</h3>
+              <p id="dl-result-title">Title</p>
+            </div>
+          </div>
+          <div class="player-wrapper" id="dl-player-container">
+            <!-- Dynamic video/audio player inserted here -->
+          </div>
+          <div class="completion-actions">
+            <a href="#" class="btn-primary" id="btn-save-file" download>
+              <i class="fa-solid fa-download"></i> Save File To Disk
+            </a>
+            <button class="btn-secondary" id="btn-download-another">
+              <i class="fa-solid fa-arrow-rotate-left"></i> Download Another
+            </button>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- TAB 2: AI SHORTS GENERATOR -->
+    <main class="tab-content" id="tab-shorts">
+      <section class="glass-card shorts-config-card">
+        <div class="section-badge"><i class="fa-solid fa-wand-magic-sparkles"></i> AI Viral Shorts Creator</div>
+        <h2>Turn Long YouTube Videos into <span>Viral 9:16 Shorts</span></h2>
+        <p class="subtitle">Whisper transcript extraction + AI viral hook detection + vertical video cropping + animated subtitles + hashtags generation.</p>
+
+        <div class="shorts-input-form">
+          <div class="input-group">
+            <span class="input-icon"><i class="fa-brands fa-youtube"></i></span>
+            <input type="text" id="shorts-url-input" placeholder="Paste YouTube Video URL (e.g. podcast, lecture, documentary, commentary)">
+          </div>
+
+          <div class="shorts-params-grid">
+            <div class="param-box">
+              <label><i class="fa-solid fa-layer-group"></i> Number of Viral Clips:</label>
+              <div class="chip-group" id="shorts-num-clips">
+                <button class="chip" data-val="1">1 Short</button>
+                <button class="chip" data-val="2">2 Shorts</button>
+                <button class="chip active" data-val="3">3 Shorts</button>
+                <button class="chip" data-val="5">5 Shorts</button>
+              </div>
+            </div>
+
+            <div class="param-box">
+              <label><i class="fa-solid fa-closed-captioning"></i> Caption Style:</label>
+              <div class="chip-group" id="shorts-caption-style">
+                <button class="chip active" data-val="neon_yellow">
+                  <span class="color-dot yellow"></span> Neon Yellow
+                </button>
+                <button class="chip" data-val="cyber_cyan">
+                  <span class="color-dot cyan"></span> Cyber Cyan
+                </button>
+                <button class="chip" data-val="classic_white">
+                  <span class="color-dot white"></span> Crisp White
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="action-footer">
+            <button class="btn-primary btn-large" id="btn-generate-shorts">
+              <i class="fa-solid fa-fire"></i>
+              <span>Generate AI Shorts Pack</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Step-by-Step AI Pipeline Tracker -->
+        <div class="pipeline-tracker-card hidden" id="shorts-pipeline-card">
+          <div class="pipeline-header">
+            <h3><i class="fa-solid fa-microchip"></i> AI Processing Engine</h3>
+            <span class="pipeline-pct" id="shorts-percent-text">0%</span>
+          </div>
+
+          <div class="pipeline-steps">
+            <div class="step-item" id="step-1">
+              <div class="step-icon"><i class="fa-solid fa-download"></i></div>
+              <div class="step-info">
+                <h4>1. Ingestion</h4>
+                <p>Download video source</p>
+              </div>
+              <div class="step-indicator"></div>
+            </div>
+            <div class="step-item" id="step-2">
+              <div class="step-icon"><i class="fa-solid fa-microphone-lines"></i></div>
+              <div class="step-info">
+                <h4>2. Speech AI</h4>
+                <p>Whisper transcription</p>
+              </div>
+              <div class="step-indicator"></div>
+            </div>
+            <div class="step-item" id="step-3">
+              <div class="step-icon"><i class="fa-solid fa-brain"></i></div>
+              <div class="step-info">
+                <h4>3. Viral Analysis</h4>
+                <p>Hook & moment scoring</p>
+              </div>
+              <div class="step-indicator"></div>
+            </div>
+            <div class="step-item" id="step-4">
+              <div class="step-icon"><i class="fa-solid fa-crop-simple"></i></div>
+              <div class="step-info">
+                <h4>4. Video Studio</h4>
+                <p>9:16 vertical + captions</p>
+              </div>
+              <div class="step-indicator"></div>
+            </div>
+            <div class="step-item" id="step-5">
+              <div class="step-icon"><i class="fa-solid fa-tags"></i></div>
+              <div class="step-info">
+                <h4>5. SEO & Copy</h4>
+                <p>Viral titles & hashtags</p>
+              </div>
+              <div class="step-indicator"></div>
+            </div>
+            <div class="step-item" id="step-6">
+              <div class="step-icon"><i class="fa-solid fa-file-zipper"></i></div>
+              <div class="step-info">
+                <h4>6. Package</h4>
+                <p>ZIP export & packaging</p>
+              </div>
+              <div class="step-indicator"></div>
+            </div>
+          </div>
+
+          <div class="pipeline-current-status">
+            <span class="spinner-ring"></span>
+            <span id="shorts-current-msg">Initializing pipeline...</span>
+          </div>
+        </div>
+
+        <!-- Generated Shorts Showcase -->
+        <div class="shorts-showcase hidden" id="shorts-showcase-card">
+          <div class="showcase-header">
+            <div>
+              <span class="badge-success"><i class="fa-solid fa-check-circle"></i> Complete</span>
+              <h2 id="showcase-title">Viral Title</h2>
+            </div>
+            <a href="#" class="btn-primary" id="btn-download-zip" download>
+              <i class="fa-solid fa-file-zipper"></i> Download All (.ZIP)
+            </a>
+          </div>
+
+          <div class="hashtags-box">
+            <span class="tag-label"><i class="fa-solid fa-hashtag"></i> Generated Hashtags:</span>
+            <span class="hashtags-text" id="showcase-hashtags">#shorts #viral</span>
+            <button class="btn-copy" id="btn-copy-hashtags" title="Copy hashtags">
+              <i class="fa-regular fa-copy"></i> Copy
+            </button>
+          </div>
+
+          <div class="shorts-grid" id="shorts-clips-grid">
+            <!-- Dynamic vertical short video cards -->
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- TAB 3: MEDIA VAULT & LIBRARY -->
+    <main class="tab-content" id="tab-library">
+      <section class="glass-card library-card">
+        <div class="library-header">
+          <div>
+            <h2><i class="fa-solid fa-box-archive"></i> Media Vault</h2>
+            <p class="subtitle">Access all your downloaded full videos, audio tracks, and AI Shorts packages.</p>
+          </div>
+          <button class="btn-secondary" id="btn-refresh-vault">
+            <i class="fa-solid fa-arrows-rotate"></i> Refresh
+          </button>
+        </div>
+
+        <div class="vault-sections">
+          <div class="vault-block">
+            <h3><i class="fa-solid fa-video"></i> Downloaded Media Files</h3>
+            <div class="files-list" id="vault-downloads-list">
+              <div class="empty-state">No downloads yet. Download some videos or audio to see them here!</div>
+            </div>
+          </div>
+
+          <div class="vault-block">
+            <h3><i class="fa-solid fa-fire"></i> Generated AI Shorts Collections</h3>
+            <div class="shorts-packs-list" id="vault-shorts-list">
+              <div class="empty-state">No shorts generated yet. Head over to the AI Shorts Generator tab!</div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Notification Toast -->
+  <div class="toast hidden" id="app-toast">
+    <i class="toast-icon fa-solid fa-info-circle"></i>
+    <span class="toast-message" id="toast-text">Notification</span>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
