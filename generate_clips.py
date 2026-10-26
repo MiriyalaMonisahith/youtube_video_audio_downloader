@@ -86,19 +86,28 @@ def download_youtube_video(
 
 def burn_subtitles_styled(clip_path: str, srt_path: str, final_path: str, style: str = "neon_yellow"):
     """
-    Burns viral styled subtitles into vertical short.
-    Uses proper escaping for Windows FFmpeg path parser.
+    Burns viral styled subtitles at the BOTTOM of the vertical 9:16 short.
+    Uses ASS formatting with Alignment=2 (Bottom-Center), MarginV=190, Fontsize=52.
     """
     escaped_srt = os.path.abspath(srt_path).replace("\\", "/").replace(":", "\\:")
     
     # Custom Subtitle Styling for Viral Shorts
     # Color codes in ASS format: &H00BBGGRR
+    # Alignment: 2 = Bottom-Center (Clean lower third, standard for Shorts / Reels)
+    # MarginV: 190 px from bottom
     if style == "cyber_cyan":
-        style_params = "Fontname=Arial,Fontsize=18,Bold=1,PrimaryColour=&H00FFFF00,OutlineColour=&H00000000,BorderStyle=3,Outline=2.5,Shadow=0,Alignment=2,MarginV=120"
+        primary_color = "&H00FFFF00"  # Vibrant Cyan
     elif style == "classic_white":
-        style_params = "Fontname=Arial,Fontsize=18,Bold=1,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BorderStyle=3,Outline=2.5,Shadow=0,Alignment=2,MarginV=120"
+        primary_color = "&H00FFFFFF"  # Crisp White
     else:  # neon_yellow default
-        style_params = "Fontname=Arial,Fontsize=19,Bold=1,PrimaryColour=&H0000E6FF,OutlineColour=&H00000000,BorderStyle=3,Outline=2.5,Shadow=0,Alignment=2,MarginV=120"
+        primary_color = "&H0000E6FF"  # High-impact Neon Yellow (MrBeast style)
+
+    style_params = (
+        f"Fontname=Arial,Fontsize=52,Bold=1,"
+        f"PrimaryColour={primary_color},OutlineColour=&H00000000,"
+        f"BorderStyle=1,Outline=3.5,Shadow=1,"
+        f"Alignment=2,MarginV=190,MarginL=40,MarginR=40"
+    )
 
     vf_filter = f"subtitles='{escaped_srt}':force_style='{style_params}'"
 
