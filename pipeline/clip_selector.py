@@ -122,6 +122,11 @@ def find_top_clips(
     if not segments:
         return []
 
+    # Dynamically adapt duration for shorter videos
+    total_dur = max(0.0, segments[-1].get("end", 0.0) - segments[0].get("start", 0.0))
+    if 5.0 <= total_dur < min_duration:
+        min_duration = max(5.0, total_dur * 0.6)
+
     candidates = []
     num_segs = len(segments)
 
@@ -165,6 +170,24 @@ def find_top_clips(
                         **scores
                     })
                     break
+
+    # Fallback if no clean punctuation-terminated candidate was found
+    if not candidates and segments:
+        full_text = " ".join(s["text"] for s in segments).strip()
+        first_s = re.split(r"(?<=[.!?])\s+", full_text)[0] if full_text else "Opening Hook"
+        start_t = round(segments[0]["start"], 2)
+        end_t = round(segments[-1]["end"], 2)
+        dur = max(1.0, round(end_t - start_t, 1))
+        scores = score_segment_virality(full_text, dur, len(full_text.split()), is_opening=True)
+        candidates.append({
+            "start": start_t,
+            "end": end_t,
+            "duration": dur,
+            "text": full_text,
+            "hook_line": first_s[:80],
+            "words": [w for s in segments for w in s.get("words", [])],
+            **scores
+        })
 
     # Sort descending by virality score
     candidates.sort(key=lambda x: x["virality_score"], reverse=True)

@@ -30,7 +30,8 @@ def extract_video_metadata(url: str) -> Dict[str, Any]:
             "uploader": info.get('uploader') or info.get('channel') or 'Creator',
             "view_count": info.get('view_count', 0),
             "license": info.get('license', 'Standard YouTube License'),
-            "description": info.get('description', '')[:500]
+            "description": info.get('description', '')[:500],
+            "raw_info": info
         }
 
 

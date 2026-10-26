@@ -47,22 +47,32 @@ def analyze_video_workflow(url: str, user_rights: str = "own") -> Dict[str, Any]
     # 2. Rights Check
     rights_info = assess_rights_and_safety(meta, user_rights_declaration=user_rights)
 
-    # 3. Fast Audio Download (or cache)
+    # 3. Fast Transcription (Cache -> YouTube Cloud Subtitles -> Whisper Fallback)
     cached_tr = get_cached_transcript(video_id)
     if cached_tr:
         transcript_data = cached_tr
         timings["download_ms"] = 0
         timings["transcribe_ms"] = 0
     else:
-        # Download 3-8MB audio stream
-        audio_path = download_audio_stream(url, video_id)
-        timings["download_ms"] = int((time.perf_counter() - t0) * 1000)
+        # Check instant YouTube Cloud Subtitles (Takes ~0.3s instead of 10m on CPU!)
+        from pipeline.transcriber import extract_youtube_cloud_transcript
+        t_sub_start = time.perf_counter()
+        cloud_tr = extract_youtube_cloud_transcript(meta.get("raw_info", {}))
+        
+        if cloud_tr and len(cloud_tr.get("words", [])) > 10:
+            transcript_data = cloud_tr
+            timings["download_ms"] = 0
+            timings["transcribe_ms"] = int((time.perf_counter() - t_sub_start) * 1000)
+        else:
+            # Fallback to local Whisper only if video has no cloud subtitles
+            t_dl_start = time.perf_counter()
+            audio_path = download_audio_stream(url, video_id)
+            timings["download_ms"] = int((time.perf_counter() - t_dl_start) * 1000)
 
-        # 4. Transcribe with Whisper (word timestamps)
-        t_tr = time.perf_counter()
-        transcript_data = transcribe_audio(audio_path, model_name="base")
-        set_cached_transcript(video_id, transcript_data)
-        timings["transcribe_ms"] = int((time.perf_counter() - t_tr) * 1000)
+            t_tr = time.perf_counter()
+            transcript_data = transcribe_audio(audio_path, model_name="tiny.en")
+            set_cached_transcript(video_id, transcript_data)
+            timings["transcribe_ms"] = int((time.perf_counter() - t_tr) * 1000)
 
     # 5. Multi-factor AI Clip Selection
     t_sel = time.perf_counter()
