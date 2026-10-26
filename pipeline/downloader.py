@@ -3,11 +3,11 @@ import time
 from typing import Dict, Any, Optional, Callable
 from pathlib import Path
 import yt_dlp
-from core.config import TEMP_DIR
+from core.config import TEMP_DIR, MEDIA_CACHE_DIR
 from core.cache import get_cache_key, get_cached_media_path, save_cached_media_path
 
 def extract_video_metadata(url: str) -> Dict[str, Any]:
-    """Extracts metadata without downloading."""
+    """Extracts metadata and subtitles without downloading."""
     ydl_opts = {
         'quiet': True,
         'no_warnings': True,
@@ -37,8 +37,7 @@ def extract_video_metadata(url: str) -> Dict[str, Any]:
 
 def download_audio_stream_fast(url: str, video_key: str, progress_cb: Optional[Callable] = None) -> Path:
     """
-    Downloads lightweight audio stream (e.g. 16kHz mono M4A/MP3) for instant Whisper transcription.
-    Typically 3-8 MB downloaded in ~2 seconds instead of downloading 600 MB video!
+    Downloads lightweight audio stream for Whisper fallback.
     """
     cached = get_cached_media_path(video_key, ext="m4a")
     if cached:
@@ -69,7 +68,6 @@ def download_audio_stream_fast(url: str, video_key: str, progress_cb: Optional[C
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         ydl.download([url])
 
-    # Find the resulting file
     parent = output_path.parent
     base_stem = output_path.stem
     for f in parent.glob(f"{base_stem}.*"):
@@ -79,26 +77,26 @@ def download_audio_stream_fast(url: str, video_key: str, progress_cb: Optional[C
     return output_path
 
 
-def download_video_section(
+def get_or_download_source_video(
     url: str,
-    start_sec: float,
-    end_sec: float,
-    job_id: str,
+    video_id: str,
     progress_cb: Optional[Callable] = None
-) -> Path:
+) -> str:
     """
-    Downloads ONLY the needed segment (yt-dlp --download-sections) at target 720p.
-    A 30-second section is ~5-12 MB and downloads in 2-4 seconds!
+    Downloads or retrieves the cached 720p source video once.
+    Once cached, all subsequent shorts (Clip 1, 2, 3, 4, 5) cut directly
+    from this local file in ~3-5 seconds with ZERO network latency!
     """
-    out_dir = TEMP_DIR / job_id
-    out_dir.mkdir(parents=True, exist_ok=True)
-    out_file = out_dir / "section.mp4"
-    temp_template = str(out_dir / "section") + ".%(ext)s"
+    MEDIA_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    cached_source = MEDIA_CACHE_DIR / f"{video_id}_source.mp4"
 
-    # Add 1.5s padding around cut for seamless crossfades/transitions
-    pad_start = max(0.0, start_sec - 1.0)
-    pad_end = end_sec + 1.0
-    section_arg = f"*{pad_start:.2f}-{pad_end:.2f}"
+    # If cached file exists and is larger than 1MB, reuse instantly
+    if cached_source.exists() and cached_source.stat().st_size > 1024 * 1024:
+        if progress_cb:
+            progress_cb({"stage": "cache", "message": "Using cached source video...", "percent": 100})
+        return str(cached_source)
+
+    temp_template = str(MEDIA_CACHE_DIR / f"{video_id}_source") + ".%(ext)s"
 
     def hook(d):
         if not progress_cb:
@@ -107,36 +105,42 @@ def download_video_section(
             total = d.get('total_bytes') or d.get('total_bytes_estimate') or 1
             curr = d.get('downloaded_bytes', 0)
             pct = int(curr / total * 100) if total else 0
-            progress_cb({"stage": "section_dl", "message": f"Downloading precision clip segment ({pct}%)...", "percent": pct})
+            progress_cb({"stage": "video_dl", "message": f"Buffering source video for high-speed clip generation ({pct}%)...", "percent": pct})
 
     ydl_opts = {
-        'format': 'bestvideo[height<=720]+bestaudio/best[height<=720]/best',
+        # Prefer pre-muxed 720p MP4 or high compatibility progressive streams
+        'format': 'best[height<=720][ext=mp4]/bestvideo[height<=720]+bestaudio/best[height<=720]/best',
         'merge_output_format': 'mp4',
-        'download_ranges': lambda info_dict, ydl: [{'start_time': pad_start, 'end_time': pad_end}],
-        'force_keyframes_at_cuts': True,
         'outtmpl': temp_template,
         'progress_hooks': [hook],
         'quiet': True,
         'no_warnings': True,
+        'concurrent_fragment_downloads': 4
     }
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        try:
-            ydl.download([url])
-        except Exception:
-            # Fallback if download_ranges fails on older ytdlp
-            pass
+        ydl.download([url])
 
-    # Find the resulting file
-    return out_file
+    for f in MEDIA_CACHE_DIR.glob(f"{video_id}_source.*"):
+        if f.suffix in [".mp4", ".mkv", ".webm"]:
+            return str(f)
+
+    return str(cached_source)
+
+
+def download_video_segment(
+    url: str,
+    video_id: str,
+    start_sec: float,
+    end_sec: float,
+    progress_cb: Optional[Callable] = None
+) -> str:
+    """
+    Returns source video path for rendering. Reuses cached source video
+    so subsequent clips require 0.0s download time!
+    """
+    return get_or_download_source_video(url, video_id, progress_cb)
 
 
 def download_audio_stream(url: str, video_key: str, progress_cb: Optional[Callable] = None) -> str:
-    """Alias for download_audio_stream_fast returning str path."""
     return str(download_audio_stream_fast(url, video_key, progress_cb))
-
-
-def download_video_segment(url: str, video_id: str, start_sec: float, end_sec: float) -> str:
-    """Alias for download_video_section returning str path."""
-    return str(download_video_section(url, start_sec, end_sec, job_id=video_id))
-

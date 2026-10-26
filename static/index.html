@@ -221,10 +221,14 @@
           </div>
 
           <!-- Export Trigger Action -->
-          <div class="action-footer" style="margin-top: 1.5rem;">
+          <div class="action-footer" style="margin-top: 1.5rem; display: flex; flex-wrap: wrap; gap: 1rem;">
             <button class="btn-primary btn-large" id="btn-render-short">
               <i class="fa-solid fa-film"></i>
-              <span>Render Single-Pass 9:16 Short (GPU)</span>
+              <span>Render Selected Clip (GPU)</span>
+            </button>
+            <button class="btn-secondary btn-large" id="btn-render-all-shorts">
+              <i class="fa-solid fa-layer-group"></i>
+              <span>Render All Clips (Batch Turbo)</span>
             </button>
           </div>
         </div>

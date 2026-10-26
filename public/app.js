@@ -436,6 +436,72 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  // Batch Turbo Renderer (Pillar 5 Batch Mode)
+  const btnRenderAllShorts = document.getElementById('btn-render-all-shorts');
+  if (btnRenderAllShorts) {
+    btnRenderAllShorts.addEventListener('click', async () => {
+      if (!currentAnalysis || !currentAnalysis.candidates || currentAnalysis.candidates.length === 0) {
+        showToast('Please analyze a video first');
+        return;
+      }
+      const candidates = currentAnalysis.candidates.slice(0, 5);
+      showToast(`Turbo Batch Rendering: creating all ${candidates.length} shorts...`);
+      btnRenderAllShorts.disabled = true;
+      btnRenderShort.disabled = true;
+      renderProgressCard.classList.remove('hidden');
+
+      for (let i = 0; i < candidates.length; i++) {
+        const cand = candidates[i];
+        renderStatusMsg.textContent = `Batch Turbo: Rendering Short ${i + 1} of ${candidates.length} (GPU)...`;
+        renderPct.textContent = `${Math.round((i / candidates.length) * 100)}%`;
+        renderProgressFill.style.width = `${Math.round((i / candidates.length) * 100)}%`;
+
+        try {
+          const res = await fetch('/api/render-clip', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              url: shortsUrlInput.value.trim(),
+              start_sec: cand.start,
+              end_sec: cand.end,
+              clip_text: cand.text,
+              video_id: currentAnalysis.video_id,
+              video_title: `${currentAnalysis.title} (Part ${i + 1})`,
+              style_name: selectedStyle,
+              progress_bar: chkProgressBar.checked,
+              watermark: inputWatermark.value.trim() || null
+            })
+          });
+          const json = await res.json();
+          if (json.success) {
+            await new Promise((resolve) => {
+              const sse = new EventSource(`/api/stream/${json.job_id}`);
+              sse.onmessage = (e) => {
+                const data = JSON.parse(e.data);
+                if (data.status === 'completed' || data.status === 'failed') {
+                  sse.close();
+                  if (data.status === 'completed' && i === candidates.length - 1) {
+                    displayRenderedShort(data.result);
+                  }
+                  resolve();
+                }
+              };
+              sse.onerror = () => { sse.close(); resolve(); };
+            });
+          }
+        } catch (e) {
+          console.error(e);
+        }
+      }
+
+      btnRenderAllShorts.disabled = false;
+      btnRenderShort.disabled = false;
+      renderProgressCard.classList.add('hidden');
+      showToast('All shorts created successfully! Check Media Vault to download them all.');
+      loadMediaVault();
+    });
+  }
+
   function listenToRenderProgress(jobId) {
     if (activeEventSource) {
       activeEventSource.close();

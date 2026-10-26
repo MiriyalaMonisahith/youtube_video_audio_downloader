@@ -85,7 +85,15 @@ def analyze_video_workflow(url: str, user_rights: str = "own") -> Dict[str, Any]
     schedule = generate_weekly_posting_schedule(candidates)
     
     total_ms = int((time.perf_counter() - overall_start) * 1000)
-    timings["total_ms"] = total_ms
+    # 7. Silently prefetch source video in background while user picks styles/trims
+    import threading
+    from pipeline.downloader import get_or_download_source_video
+    def _prefetch():
+        try:
+            get_or_download_source_video(url, video_id)
+        except Exception:
+            pass
+    threading.Thread(target=_prefetch, daemon=True).start()
 
     return {
         "video_id": video_id,
@@ -155,7 +163,7 @@ def execute_render_job(
         render_res = render_short_video(
             source_video_path=seg_video_path,
             output_path=output_path,
-            start_sec=0.0, # Since we downloaded only the segment starting at 0
+            start_sec=start_sec, # Seeks directly to start timestamp in single pass!
             duration_sec=duration,
             subtitles_ass_path=ass_path,
             progress_bar=progress_bar,
