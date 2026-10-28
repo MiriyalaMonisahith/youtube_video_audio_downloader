@@ -150,5 +150,75 @@ class TestVortexPipeline(unittest.TestCase):
         self.assertEqual(job.progress, 100)
 
 
+    def test_self_enhancing_ai(self):
+        from pipeline.self_learner import enhance_from_clip, get_ai_learner_status, load_learner_state
+        initial = load_learner_state()
+        iter_before = initial.get("iteration", 1)
+
+        result = enhance_from_clip(
+            duration_sec=32.5,
+            score=94.0,
+            style_name="mrbeast",
+            clip_text="This unbelievable trick will blow your mind right now.",
+            copyright_free=True
+        )
+        self.assertGreater(result["iteration"], iter_before)
+        self.assertIn("note", result)
+
+        status = get_ai_learner_status()
+        self.assertTrue(status["success"])
+        self.assertEqual(status["iteration"], result["iteration"])
+        self.assertGreater(len(status["evolution_log"]), 0)
+
+    def test_auto_upload_scheduler(self):
+        from pipeline.scheduler import schedule_clip_for_upload, load_queue
+        clip_entry = schedule_clip_for_upload(
+            clip_filename="test_clip_auto.mp4",
+            title="Auto-Upload Daily Viral Hook",
+            description="Testing automated custom daily scheduler #Shorts",
+            tags=["#Shorts", "#Viral"]
+        )
+        self.assertIn("scheduled_time", clip_entry)
+        self.assertEqual(clip_entry["status"], "QUEUED")
+
+        queue = load_queue()
+        ids = [item["id"] for item in queue]
+        self.assertIn(clip_entry["id"], ids)
+
+    def test_notifications_and_alarms(self):
+        from pipeline.notifier import send_whatsapp_alarm, send_daily_email
+        wa = send_whatsapp_alarm(phone="9666641949", message="Test Vortex Alarm")
+        self.assertTrue(wa["success"])
+        self.assertIn("9666641949", wa["recipient"])
+
+        em = send_daily_email(to_email="monisahith11@gmail.com", subject="Test Daily Alarm")
+        self.assertTrue(em["success"])
+        self.assertEqual(em["recipient"], "monisahith11@gmail.com")
+
+    def test_youtube_uploader_automation(self):
+        from pipeline.youtube_uploader import (
+            load_youtube_credentials,
+            save_youtube_credentials,
+            get_youtube_status,
+            upload_short_to_youtube,
+            test_youtube_connection
+        )
+        status = get_youtube_status()
+        self.assertTrue(status["success"])
+        self.assertIn("is_authenticated", status)
+
+        # Test dry-run upload
+        res = upload_short_to_youtube(
+            video_path="nonexistent_mock_video.mp4",
+            title="Viral Secret You Never Knew",
+            description="Testing automated background upload architecture #Shorts"
+        )
+        self.assertFalse(res["success"])  # cleanly handles missing video file
+        self.assertIn("not found", res["error"])
+
+        conn_test = test_youtube_connection()
+        self.assertIn("message", conn_test)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -29,6 +29,23 @@ def escape_ffmpeg_path(path: str) -> str:
     return clean
 
 
+def get_system_font_arg() -> str:
+    """Finds a valid system TTF font file on Windows/Linux to prevent Fontconfig crashes."""
+    candidates = [
+        r"C:\Windows\Fonts\arial.ttf",
+        r"C:\Windows\Fonts\segoeui.ttf",
+        r"C:\Windows\Fonts\calibri.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        "/usr/share/fonts/TTF/DejaVuSans.ttf",
+        "/System/Library/Fonts/Helvetica.ttc"
+    ]
+    for c in candidates:
+        if os.path.exists(c):
+            escaped = c.replace("\\", "/").replace(":", r"\:")
+            return f":fontfile='{escaped}'"
+    return ""
+
+
 def render_short_video(
     source_video_path: str,
     output_path: str,
@@ -40,11 +57,12 @@ def render_short_video(
     bgm_volume: float = 0.12,
     commentary_path: Optional[str] = None,
     commentary_volume: float = 1.0,
-    watermark_text: Optional[str] = None
+    watermark_text: Optional[str] = None,
+    copyright_free_mode: bool = False
 ) -> Dict[str, Any]:
     """
     Renders a 9:16 vertical YouTube Short in a SINGLE FFmpeg pass with hardware acceleration.
-    Returns timing metrics and rendered metadata.
+    Supports Copyright Shield mode (transformative acoustic/spatial re-encoding) and robust watermark.
     """
     render_start = time.perf_counter()
     os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
@@ -56,67 +74,80 @@ def render_short_video(
         "crop=1080:1920"
     ]
 
+    # Transformative visual filter for Content-ID evasion
+    if copyright_free_mode:
+        vf_filters.append("eq=contrast=1.04:saturation=1.06:brightness=0.01")
+        vf_filters.append("unsharp=3:3:0.8:3:3:0.0")
+
     # Step B: Subtitles burn-in
-    if subtitles_ass_path and os.path.exists(subtitles_ass_path):
+    has_ass = bool(subtitles_ass_path and os.path.exists(subtitles_ass_path))
+    if has_ass:
         escaped_sub = escape_ffmpeg_path(subtitles_ass_path)
         vf_filters.append(f"subtitles='{escaped_sub}'")
 
     # Step C: Dynamic Progress Bar along the top
     if progress_bar and duration_sec > 0:
-        # Progress bar fills from x=0 to width over duration
         vf_filters.append(
             f"drawbox=x=0:y=6:w='iw*(t/{duration_sec:.2f})':h=10:color=0x00E6FF@0.9:t=fill"
         )
 
-    # Step D: Optional watermark
-    if watermark_text:
-        clean_text = watermark_text.replace(":", "\\:").replace("'", "")
+    # Step D: Optional watermark fallback via drawtext (if not already embedded in ASS)
+    if watermark_text and not has_ass:
+        clean_text = (
+            watermark_text.replace("\\", r"\\")
+            .replace("'", r"\'")
+            .replace(":", r"\:")
+            .replace(",", r"\,")
+            .replace("%", r"\%")
+        )
+        font_opt = get_system_font_arg()
         vf_filters.append(
-            f"drawtext=text='{clean_text}':fontcolor=white@0.6:fontsize=28:x=40:y=40"
+            f"drawtext=text='{clean_text}'{font_opt}:fontcolor=white@0.75:fontsize=32:x=45:y=45:box=1:boxcolor=black@0.4:boxborderw=6"
         )
 
     vf_chain = ",".join(vf_filters)
 
     # 2. Build Inputs and Audio Filter Graph
+    # -accurate_seek guarantees frame-exact PTS start matching subtitle timestamps
     inputs = [
         "-ss", str(start_sec),
-        "-t", str(duration_sec),
-        "-i", source_video_path
+        "-accurate_seek",
+        "-i", source_video_path,
+        "-t", str(duration_sec)
     ]
 
     audio_inputs_count = 1
-    filter_complex_audio = []
-
-    # Optional Commentary track
     has_commentary = commentary_path and os.path.exists(commentary_path)
     if has_commentary:
         inputs.extend(["-i", commentary_path])
         audio_inputs_count += 1
 
-    # Optional Royalty-Free Background Music
     has_bgm = bgm_path and os.path.exists(bgm_path)
     if has_bgm:
         inputs.extend(["-stream_loop", "-1", "-i", bgm_path])
         audio_inputs_count += 1
 
+    # Zero-drift transformative acoustic filter: alters spectral peaks without changing audio PTS or playback speed
+    anti_cid_af = "equalizer=f=1200:t=q:w=1.2:g=1.2,equalizer=f=3200:t=q:w=1.5:g=-1.1,highpass=f=75,lowpass=f=14500,volume=1.02"
+
     # Audio mixing logic
     if audio_inputs_count == 1:
-        # Just original audio
-        audio_args = ["-c:a", "aac", "-b:a", "192k"]
+        if copyright_free_mode:
+            audio_args = ["-af", anti_cid_af, "-c:a", "aac", "-b:a", "192k"]
+        else:
+            audio_args = ["-c:a", "aac", "-b:a", "192k"]
         video_filter_arg = ["-vf", vf_chain]
     else:
         # Multi-track audio mix
-        # [0:a] is main speech
         fc = []
+        base_a = f"[0:a]{anti_cid_af}[a0_clean];[a0_clean]" if copyright_free_mode else "[0:a]"
+
         if has_commentary and not has_bgm:
-            # 0:a + 1:a
-            fc.append(f"[0:a]volume=1.0[a0];[1:a]volume={commentary_volume}[a1];[a0][a1]amix=inputs=2:duration=first:dropout_transition=2[aout]")
+            fc.append(f"{base_a}volume=1.0[a0];[1:a]volume={commentary_volume}[a1];[a0][a1]amix=inputs=2:duration=first:dropout_transition=2[aout]")
         elif has_bgm and not has_commentary:
-            # 0:a + 1:a (bgm)
-            fc.append(f"[0:a]volume=1.0[a0];[1:a]volume={bgm_volume}[a1];[a0][a1]amix=inputs=2:duration=first:dropout_transition=2[aout]")
+            fc.append(f"{base_a}volume=1.0[a0];[1:a]volume={bgm_volume}[a1];[a0][a1]amix=inputs=2:duration=first:dropout_transition=2[aout]")
         elif has_commentary and has_bgm:
-            # 0:a + 1:a (commentary) + 2:a (bgm)
-            fc.append(f"[0:a]volume=0.9[a0];[1:a]volume={commentary_volume}[a1];[2:a]volume={bgm_volume}[a2];[a0][a1][a2]amix=inputs=3:duration=first:dropout_transition=2[aout]")
+            fc.append(f"{base_a}volume=0.9[a0];[1:a]volume={commentary_volume}[a1];[2:a]volume={bgm_volume}[a2];[a0][a1][a2]amix=inputs=3:duration=first:dropout_transition=2[aout]")
 
         fc.append(f"[0:v]{vf_chain}[vout]")
         filter_complex_str = ";".join(fc)

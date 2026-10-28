@@ -23,6 +23,8 @@ from pipeline.video_processor import render_short_video
 from pipeline.rights_guard import assess_rights_and_safety
 from pipeline.publisher import generate_shorts_metadata, generate_weekly_posting_schedule
 from pipeline.job_manager import job_manager, JobState
+from pipeline.self_learner import enhance_from_clip
+from pipeline.scheduler import schedule_clip_for_upload
 
 
 def analyze_video_workflow(url: str, user_rights: str = "own") -> Dict[str, Any]:
@@ -121,12 +123,14 @@ def execute_render_job(
     progress_bar: bool = True,
     watermark: Optional[str] = None,
     commentary_path: Optional[str] = None,
-    bgm_path: Optional[str] = None
+    bgm_path: Optional[str] = None,
+    copyright_free: bool = False,
+    score: float = 92.0
 ):
     """
     Background worker function that downloads only the required video segment,
     generates styled ASS subtitles, renders 9:16 vertical short in single-pass,
-    and publishes progress via job_manager.
+    applies Copyright Shield if enabled, and publishes progress via job_manager.
     """
     job = job_manager.get_job(job_id)
     if not job:
@@ -142,7 +146,7 @@ def execute_render_job(
         dl_ms = int((time.perf_counter() - t_dl_start) * 1000)
         job.update("generating_subtitles", 40, "Generating animated word-by-word karaoke captions...", {"download_ms": dl_ms})
 
-        # Generate Subtitles
+        # Generate Subtitles with embedded Watermark
         cached_tr = get_cached_transcript(video_id) or {"words": []}
         ass_path = os.path.join(TEMP_DIR, f"{job_id}_subs.ass")
         generate_animated_ass(
@@ -150,7 +154,8 @@ def execute_render_job(
             output_path=ass_path,
             clip_start=start_sec,
             clip_end=end_sec,
-            style_name=style_name
+            style_name=style_name,
+            watermark_text=watermark
         )
 
         job.update("rendering", 65, "Rendering 9:16 short with hardware acceleration...")
@@ -169,20 +174,42 @@ def execute_render_job(
             progress_bar=progress_bar,
             bgm_path=bgm_path,
             commentary_path=commentary_path,
-            watermark_text=watermark
+            watermark_text=watermark,
+            copyright_free_mode=copyright_free
         )
         rnd_ms = int((time.perf_counter() - t_rnd_start) * 1000)
 
-        # Generate publishing package
+        # Generate publishing package with Fair Use Shield
+        attr_line = f"Original content: {url}"
+        if copyright_free:
+            attr_line += "\nFair Use Disclaimer: Transformative critique, commentary, and curation under Section 107 of the Copyright Act 1976."
+
         pub_meta = generate_shorts_metadata(
             clip_text=clip_text,
             original_title=video_title,
-            attribution_line=f"Original content: {url}",
+            attribution_line=attr_line,
             duration_sec=duration
         )
 
         total_ms = int((time.perf_counter() - overall_start) * 1000)
         job.update("finalizing", 95, "Finalizing metadata and export package...", {"render_ms": rnd_ms})
+
+        # 1. Trigger Self-Enhancing AI Agent evolution after this short
+        learner_result = enhance_from_clip(
+            duration_sec=duration,
+            score=score,
+            style_name=style_name,
+            clip_text=clip_text,
+            copyright_free=copyright_free
+        )
+
+        # 2. Automatically enqueue for Daily Auto-Upload at custom times and dispatch alarms
+        scheduled_entry = schedule_clip_for_upload(
+            clip_filename=output_filename,
+            title=pub_meta.get("title", f"Short - {output_filename}"),
+            description=pub_meta.get("description", ""),
+            tags=pub_meta.get("tags", ["#Shorts", "#Viral"])
+        )
 
         result = {
             "video_url": f"/shorts/{output_filename}",
@@ -191,6 +218,8 @@ def execute_render_job(
             "render_time_sec": render_res.get("render_time_sec", 0),
             "file_size_mb": render_res.get("file_size_mb", 0),
             "publishing": pub_meta,
+            "self_learning": learner_result,
+            "scheduled_upload": scheduled_entry,
             "timings": {
                 "download_ms": dl_ms,
                 "render_ms": rnd_ms,

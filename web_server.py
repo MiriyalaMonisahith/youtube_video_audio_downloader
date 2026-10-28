@@ -18,6 +18,14 @@ from core.hardware import detect_hardware_encoder
 from pipeline.orchestrator import analyze_video_workflow, execute_render_job
 from pipeline.job_manager import job_manager
 from pipeline.rights_guard import assess_rights_and_safety
+from pipeline.self_learner import get_ai_learner_status
+from pipeline.scheduler import (
+    load_scheduler_config,
+    save_scheduler_config,
+    load_queue,
+    start_scheduler_daemon
+)
+from pipeline.notifier import send_whatsapp_alarm, send_daily_email, trigger_daily_alarm_suite
 
 try:
     from generate_clips import main_pipeline
@@ -32,6 +40,13 @@ app = Flask(__name__, static_folder=STATIC_DIR, static_url_path="")
 
 # In-memory legacy job store for basic downloads
 jobs = {}
+
+
+def clean_url(raw_url: str) -> str:
+    """Strips whitespace, zero-width spaces, and invisible Unicode chars from user URLs."""
+    if not raw_url:
+        return ""
+    return "".join(c for c in str(raw_url) if c not in ('\u200b', '\ufeff', '\u200e', '\u200f', '\n', '\r', '\t')).strip()
 
 
 @app.route("/")
@@ -79,7 +94,7 @@ def analyze_video():
     evaluates copyright rights, and produces weekly schedule + A/B titles.
     """
     data = request.get_json() or {}
-    url = data.get("url", "").strip()
+    url = clean_url(data.get("url", ""))
     rights = data.get("rights", "own")
 
     if not url:
@@ -107,7 +122,7 @@ def render_clip():
     and streams progress over SSE.
     """
     data = request.get_json() or {}
-    url = data.get("url", "").strip()
+    url = clean_url(data.get("url", ""))
     start_sec = float(data.get("start_sec", 0.0))
     end_sec = float(data.get("end_sec", 45.0))
     clip_text = data.get("clip_text", "")
@@ -116,6 +131,8 @@ def render_clip():
     style_name = data.get("style_name", "mrbeast")
     progress_bar = bool(data.get("progress_bar", True))
     watermark = data.get("watermark", None)
+    copyright_free = bool(data.get("copyright_free", False))
+    score = float(data.get("score") or data.get("virality_score") or 92.0)
 
     if not url:
         return jsonify({"success": False, "error": "URL is required"}), 400
@@ -137,7 +154,9 @@ def render_clip():
         video_title=video_title,
         style_name=style_name,
         progress_bar=progress_bar,
-        watermark=watermark
+        watermark=watermark,
+        copyright_free=copyright_free,
+        score=score
     )
 
     return jsonify({
@@ -167,7 +186,7 @@ def stream_job_events(job_id):
 @app.route("/api/rights-check", methods=["POST"])
 def rights_check():
     data = request.get_json() or {}
-    url = data.get("url", "").strip()
+    url = clean_url(data.get("url", ""))
     user_declaration = data.get("declaration", "own")
     if not url:
         return jsonify({"success": False, "error": "URL is required"}), 400
@@ -197,7 +216,7 @@ def serve_rendered_short(filename):
 @app.route("/api/info", methods=["POST"])
 def fetch_info():
     data = request.get_json() or {}
-    url = data.get("url", "").strip()
+    url = clean_url(data.get("url", ""))
     if not url:
         return jsonify({"success": False, "error": "Please provide a valid URL"}), 400
 
@@ -211,7 +230,7 @@ def fetch_info():
 @app.route("/api/download", methods=["POST"])
 def start_download():
     data = request.get_json() or {}
-    url = data.get("url", "").strip()
+    url = clean_url(data.get("url", ""))
     if not url:
         return jsonify({"success": False, "error": "URL is required"}), 400
 
@@ -361,6 +380,142 @@ def force_download(subpath):
     if not os.path.exists(full_path):
         return "File not found", 404
     return send_file(full_path, as_attachment=True)
+
+
+
+# ==========================================
+# 6. SELF-ENHANCING AI & SCHEDULER & ALARMS
+# ==========================================
+
+@app.route("/api/ai-learner/status", methods=["GET"])
+def get_learner_status_endpoint():
+    """Returns real-time neural learning metrics and recent evolution logs."""
+    return jsonify({
+        "success": True,
+        "data": get_ai_learner_status()
+    })
+
+
+@app.route("/api/scheduler/config", methods=["GET", "POST"])
+def scheduler_config_endpoint():
+    """Reads or updates custom daily posting times and alarm preferences."""
+    if request.method == "POST":
+        data = request.get_json() or {}
+        cfg = load_scheduler_config()
+        if "daily_times" in data:
+            cfg["daily_times"] = data["daily_times"]
+        if "enabled" in data:
+            cfg["enabled"] = bool(data["enabled"])
+        if "target_whatsapp" in data:
+            cfg["target_whatsapp"] = str(data["target_whatsapp"])
+        if "target_email" in data:
+            cfg["target_email"] = str(data["target_email"])
+        save_scheduler_config(cfg)
+        return jsonify({"success": True, "config": cfg})
+    else:
+        return jsonify({"success": True, "config": load_scheduler_config()})
+
+
+@app.route("/api/scheduler/queue", methods=["GET"])
+def scheduler_queue_endpoint():
+    """Returns all queued and published auto-upload shorts."""
+    return jsonify({
+        "success": True,
+        "queue": load_queue()
+    })
+
+
+@app.route("/api/notify/test-whatsapp", methods=["POST"])
+def notify_test_whatsapp():
+    """Triggers an immediate WhatsApp test alarm to +91 9666641949."""
+    data = request.get_json() or {}
+    phone = data.get("phone", "9666641949")
+    msg = data.get("message")
+    res = send_whatsapp_alarm(phone=phone, message=msg)
+    return jsonify({"success": True, "result": res})
+
+
+@app.route("/api/notify/test-email", methods=["POST"])
+def notify_test_email():
+    """Triggers an immediate email test alarm to monisahith11@gmail.com."""
+    data = request.get_json() or {}
+    email = data.get("email", "monisahith11@gmail.com")
+    clip_title = data.get("clip_title", "Daily AI Shorts Hub Ready")
+    res = send_daily_email(to_email=email, subject=f"⚡ Vortex Alarm: {clip_title}")
+    return jsonify({"success": True, "result": res})
+
+
+
+# ==========================================
+# 7. YOUTUBE AUTOMATED UPLOADER ENGINE
+# ==========================================
+from pipeline.youtube_uploader import (
+    load_youtube_credentials,
+    save_youtube_credentials,
+    get_youtube_status,
+    test_youtube_connection,
+    upload_short_to_youtube
+)
+
+
+@app.route("/api/youtube/status", methods=["GET"])
+def youtube_status_endpoint():
+    """Returns current YouTube channel connection and credentials status."""
+    return jsonify({
+        "success": True,
+        "status": get_youtube_status()
+    })
+
+
+@app.route("/api/youtube/credentials", methods=["POST"])
+def youtube_credentials_endpoint():
+    """Saves user-provided YouTube OAuth 2.0 credentials."""
+    data = request.get_json() or {}
+    cfg = load_youtube_credentials()
+    if "client_id" in data:
+        cfg["client_id"] = str(data["client_id"]).strip()
+    if "client_secret" in data:
+        cfg["client_secret"] = str(data["client_secret"]).strip()
+    if "refresh_token" in data:
+        cfg["refresh_token"] = str(data["refresh_token"]).strip()
+    if "privacy_status" in data:
+        cfg["privacy_status"] = str(data["privacy_status"]).strip()
+    if "default_category_id" in data:
+        cfg["default_category_id"] = str(data["default_category_id"]).strip()
+
+    save_youtube_credentials(cfg)
+    test_res = test_youtube_connection()
+    return jsonify({
+        "success": True,
+        "status": get_youtube_status(),
+        "test_result": test_res
+    })
+
+
+@app.route("/api/youtube/test", methods=["POST"])
+def youtube_test_endpoint():
+    """Validates the saved YouTube credentials against Google's API."""
+    res = test_youtube_connection()
+    return jsonify(res)
+
+
+@app.route("/api/youtube/manual-upload", methods=["POST"])
+def youtube_manual_upload_endpoint():
+    """Manually triggers immediate YouTube upload for a specific clip."""
+    data = request.get_json() or {}
+    filename = data.get("filename", "")
+    title = data.get("title", f"Short - {filename}")
+    desc = data.get("description", "")
+    tags = data.get("tags", ["#Shorts", "#Viral"])
+    res = upload_short_to_youtube(video_path=filename, title=title, description=desc, tags=tags)
+    return jsonify({"success": True, "result": res})
+
+
+# Start auto-upload daemon monitor
+try:
+    start_scheduler_daemon()
+except Exception as _e:
+    print(f"Warning: Could not start scheduler daemon: {_e}")
 
 
 if __name__ == "__main__":

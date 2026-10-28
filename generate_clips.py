@@ -109,7 +109,7 @@ def burn_subtitles_styled(clip_path: str, srt_path: str, final_path: str, style:
         f"Alignment=2,MarginV=190,MarginL=40,MarginR=40"
     )
 
-    vf_filter = f"subtitles='{escaped_srt}':force_style='{style_params}'"
+    vf_filter = f"subtitles='{escaped_srt}':original_size=1080x1920:force_style='{style_params}'"
 
     cmd = [
         FFMPEG_BIN,

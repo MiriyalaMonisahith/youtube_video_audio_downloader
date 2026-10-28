@@ -50,3 +50,12 @@ cache/
 *.log
 .DS_Store
 Thumbs.db
+
+# Secrets & Credentials
+client_secret*.json
+credentials.json
+token.json
+youtube_credentials.json
+*.env
+.env*
+.env.local

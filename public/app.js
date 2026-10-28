@@ -71,6 +71,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const lblDuration = document.getElementById('lbl-duration');
   const styleCards = document.querySelectorAll('.style-card');
   const chkProgressBar = document.getElementById('chk-progress-bar');
+  const chkCopyrightFree = document.getElementById('chk-copyright-free');
   const inputWatermark = document.getElementById('input-watermark');
   const btnRenderShort = document.getElementById('btn-render-short');
 
@@ -169,6 +170,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
       if (btn.getAttribute('data-tab') === 'tab-library') {
         loadMediaVault();
+      } else if (btn.getAttribute('data-tab') === 'tab-scheduler') {
+        loadSchedulerConfig();
+        loadSchedulerQueue();
+        loadYouTubeStatus();
+      } else if (btn.getAttribute('data-tab') === 'tab-learner') {
+        loadAiLearnerStatus();
       }
     });
   });
@@ -280,9 +287,15 @@ document.addEventListener('DOMContentLoaded', () => {
       card.className = `candidate-card ${idx === 0 ? 'active' : ''}`;
       card.dataset.index = idx;
 
+      const monScore = cand.monetization_score || (cand.scores && cand.scores.monetization) || 92;
+      const loopScore = cand.loop_score || (cand.scores && cand.scores.loop) || 85;
+
       card.innerHTML = `
-        <div class="candidate-top-row">
+        <div class="candidate-top-row" style="flex-wrap: wrap; gap: 0.35rem;">
           <div class="virality-badge"><i class="fa-solid fa-fire"></i> ${cand.virality_score}/100 VIRAL</div>
+          <div style="background: rgba(16, 185, 129, 0.18); border: 1px solid rgba(16, 185, 129, 0.35); color: #34d399; font-size: 0.72rem; padding: 0.15rem 0.45rem; border-radius: 6px; font-weight: 700;">
+            <i class="fa-solid fa-sack-dollar"></i> ${monScore}% MONETIZE
+          </div>
           <span class="clip-duration-tag">${cand.duration}s</span>
         </div>
         <div class="candidate-hook">"${cand.hook}"</div>
@@ -295,16 +308,16 @@ document.addEventListener('DOMContentLoaded', () => {
           <div class="score-bar-bg"><div class="score-bar-fill" style="width: ${cand.scores.hook}%;"></div></div>
 
           <div class="score-row" style="margin-top: 4px;">
-            <span>Emotional Peak</span>
-            <span>${cand.scores.emotion}/100</span>
+            <span>Loopability (Infinite Watch-Time)</span>
+            <span>${loopScore}/100</span>
           </div>
-          <div class="score-bar-bg"><div class="score-bar-fill" style="width: ${cand.scores.emotion}%;"></div></div>
+          <div class="score-bar-bg"><div class="score-bar-fill" style="width: ${loopScore}%; background: linear-gradient(90deg, #34d399, #06b6d4);"></div></div>
 
           <div class="score-row" style="margin-top: 4px;">
-            <span>Retention Potential</span>
-            <span>${cand.scores.retention}/100</span>
+            <span>Monetization Velocity</span>
+            <span>${monScore}/100</span>
           </div>
-          <div class="score-bar-bg"><div class="score-bar-fill" style="width: ${cand.scores.retention}%;"></div></div>
+          <div class="score-bar-bg"><div class="score-bar-fill" style="width: ${monScore}%; background: linear-gradient(90deg, #f59e0b, #10b981);"></div></div>
         </div>
       `;
 
@@ -395,6 +408,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const endSec = parseFloat(sliderEnd.value);
     const watermarkText = inputWatermark.value.trim() || null;
     const progressBar = chkProgressBar.checked;
+    const copyrightFree = chkCopyrightFree ? chkCopyrightFree.checked : true;
 
     btnRenderShort.disabled = true;
     renderProgressCard.classList.remove('hidden');
@@ -418,7 +432,9 @@ document.addEventListener('DOMContentLoaded', () => {
           video_title: currentAnalysis.title,
           style_name: selectedStyle,
           progress_bar: progressBar,
-          watermark: watermarkText
+          watermark: watermarkText,
+          copyright_free: copyrightFree,
+          score: selectedCandidate.virality_score || 92
         })
       });
 
@@ -469,7 +485,8 @@ document.addEventListener('DOMContentLoaded', () => {
               video_title: `${currentAnalysis.title} (Part ${i + 1})`,
               style_name: selectedStyle,
               progress_bar: chkProgressBar.checked,
-              watermark: inputWatermark.value.trim() || null
+              watermark: inputWatermark.value.trim() || null,
+              copyright_free: chkCopyrightFree ? chkCopyrightFree.checked : true
             })
           });
           const json = await res.json();
@@ -570,6 +587,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
     pubDescription.value = pub.description || '';
 
+    // Self-Evolution & Auto-Upload Confirmation
+    const evoBox = document.getElementById('render-evolution-box');
+    const evoIter = document.getElementById('render-evolution-iter');
+    const evoNote = document.getElementById('render-evolution-note');
+    const alarmInfo = document.getElementById('render-upload-alarm-info');
+
+    if (result.self_learning && evoBox) {
+      evoBox.style.display = 'block';
+      if (evoIter) evoIter.textContent = `Iteration #${result.self_learning.iteration}`;
+      if (evoNote) evoNote.textContent = result.self_learning.note || 'AI parameters evolved for subsequent shorts.';
+    }
+
+    if (result.scheduled_upload && alarmInfo) {
+      alarmInfo.textContent = `Auto-Upload scheduled for ${result.scheduled_upload.scheduled_time}. WhatsApp alarm (+91 9666641949) & Email (monisahith11@gmail.com) dispatched!`;
+      loadSchedulerQueue();
+      loadAiLearnerStatus();
+    }
+
     // Scroll smoothly to preview
     renderedShowcaseCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }
@@ -578,6 +613,17 @@ document.addEventListener('DOMContentLoaded', () => {
     btnCopyDesc.addEventListener('click', () => {
       navigator.clipboard.writeText(pubDescription.value);
       showToast('Description & tags copied!');
+    });
+  }
+
+  const btnOpenYtStudio = document.getElementById('btn-open-yt-studio');
+  if (btnOpenYtStudio) {
+    btnOpenYtStudio.addEventListener('click', () => {
+      if (pubDescription && pubDescription.value) {
+        navigator.clipboard.writeText(pubDescription.value);
+      }
+      showToast('Viral Title & Tags copied to clipboard! Opening YouTube Studio...');
+      window.open('https://studio.youtube.com/channel/UCEuEABj_5aEXqbUhBh-vxjA/videos/upload?d=ud', '_blank');
     });
   }
 
@@ -786,6 +832,308 @@ document.addEventListener('DOMContentLoaded', () => {
       console.error('Vault load error', e);
     }
   }
+
+  // -----------------------------------------
+  // AUTO-UPLOAD SCHEDULER & DAILY ALARMS
+  // -----------------------------------------
+  async function loadSchedulerConfig() {
+    try {
+      const res = await fetch('/api/scheduler/config');
+      const data = await res.json();
+      if (data.success && data.config) {
+        const times = data.config.daily_times || {};
+        document.querySelectorAll('.daily-time-input').forEach(input => {
+          const day = input.getAttribute('data-day');
+          if (times[day]) {
+            input.value = times[day];
+          }
+        });
+      }
+    } catch (e) {
+      console.error('Failed to load scheduler config', e);
+    }
+  }
+
+  const btnSaveDailyTimes = document.getElementById('btn-save-daily-times');
+  if (btnSaveDailyTimes) {
+    btnSaveDailyTimes.addEventListener('click', async () => {
+      const dailyTimes = {};
+      document.querySelectorAll('.daily-time-input').forEach(input => {
+        const day = input.getAttribute('data-day');
+        dailyTimes[day] = input.value;
+      });
+
+      try {
+        const res = await fetch('/api/scheduler/config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ daily_times: dailyTimes })
+        });
+        const data = await res.json();
+        if (data.success) {
+          showToast('Custom daily posting times saved successfully!');
+        }
+      } catch (e) {
+        showToast(`Save failed: ${e.message}`);
+      }
+    });
+  }
+
+  async function loadSchedulerQueue() {
+    const queueBody = document.getElementById('scheduler-queue-body');
+    if (!queueBody) return;
+
+    try {
+      const res = await fetch('/api/scheduler/queue');
+      const data = await res.json();
+      if (!data.success) return;
+
+      const q = data.queue || [];
+      if (q.length === 0) {
+        queueBody.innerHTML = `<tr><td colspan="4" style="text-align: center; padding: 1.5rem; color: #64748b;">No shorts scheduled yet. Render a short to auto-enqueue!</td></tr>`;
+        return;
+      }
+
+      queueBody.innerHTML = '';
+      q.forEach(item => {
+        const tr = document.createElement('tr');
+        tr.style.borderBottom = '1px solid rgba(255, 255, 255, 0.05)';
+        const isPub = item.status === 'PUBLISHED';
+        const statusBadge = isPub 
+          ? `<span style="background: rgba(16, 185, 129, 0.2); color: #34d399; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.75rem;"><i class="fa-solid fa-check"></i> PUBLISHED</span>`
+          : `<span style="background: rgba(99, 102, 241, 0.2); color: #818cf8; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.75rem;"><i class="fa-solid fa-clock"></i> QUEUED</span>`;
+
+        tr.innerHTML = `
+          <td style="padding: 0.75rem 1rem;">
+            <strong style="color: #f8fafc;">${item.title || item.filename}</strong>
+            <div style="font-size: 0.75rem; color: #64748b;">${item.filename}</div>
+          </td>
+          <td style="padding: 0.75rem 1rem; color: #cbd5e1; font-family: monospace;">${item.scheduled_time}</td>
+          <td style="padding: 0.75rem 1rem;">${statusBadge}</td>
+          <td style="padding: 0.75rem 1rem;">
+            <div style="display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap;">
+              <a href="/shorts/${item.filename}" class="btn-secondary btn-small" download style="font-size: 0.78rem; padding: 0.25rem 0.6rem;">
+                <i class="fa-solid fa-download"></i> Video
+              </a>
+              ${item.youtube_url ? `
+              <a href="${item.youtube_url}" target="_blank" class="btn-primary btn-small" style="font-size: 0.78rem; padding: 0.25rem 0.6rem; background: #ef4444;">
+                <i class="fa-brands fa-youtube"></i> Short
+              </a>` : ''}
+            </div>
+          </td>
+        `;
+        queueBody.appendChild(tr);
+      });
+    } catch (e) {
+      console.error('Queue load error', e);
+    }
+  }
+
+  const btnRefreshQueue = document.getElementById('btn-refresh-queue');
+  if (btnRefreshQueue) {
+    btnRefreshQueue.addEventListener('click', loadSchedulerQueue);
+  }
+
+  // -----------------------------------------
+  // YOUTUBE CHANNEL AUTOMATION ENGINE
+  // -----------------------------------------
+  const ytPill = document.getElementById('yt-connection-pill');
+  const ytClientId = document.getElementById('yt-client-id');
+  const ytClientSecret = document.getElementById('yt-client-secret');
+  const ytRefreshToken = document.getElementById('yt-refresh-token');
+  const ytPrivacySelect = document.getElementById('yt-privacy-select');
+  const btnSaveYtCreds = document.getElementById('btn-save-yt-creds');
+  const btnTestYtConn = document.getElementById('btn-test-yt-conn');
+  const ytFeedbackMsg = document.getElementById('yt-feedback-msg');
+
+  async function loadYouTubeStatus() {
+    try {
+      const res = await fetch('/api/youtube/status');
+      const data = await res.json();
+      if (!data.success || !data.status) return;
+
+      const s = data.status;
+      if (s.is_authenticated) {
+        if (ytPill) {
+          ytPill.style.background = 'rgba(16, 185, 129, 0.15)';
+          ytPill.style.borderColor = 'rgba(16, 185, 129, 0.4)';
+          ytPill.style.color = '#34d399';
+          ytPill.innerHTML = `<i class="fa-solid fa-circle-check"></i> Connected: ${s.channel_title || 'YouTube Channel'}`;
+        }
+      } else {
+        if (ytPill) {
+          ytPill.style.background = 'rgba(245, 158, 11, 0.15)';
+          ytPill.style.borderColor = 'rgba(245, 158, 11, 0.4)';
+          ytPill.style.color = '#fbbf24';
+          ytPill.innerHTML = `<i class="fa-solid fa-circle-pause"></i> Background Pipeline Ready (Credentials Pending)`;
+        }
+      }
+
+      if (s.privacy_status && ytPrivacySelect) {
+        ytPrivacySelect.value = s.privacy_status;
+      }
+      if (s.client_id_preview && ytClientId && !ytClientId.value) {
+        ytClientId.placeholder = `Configured (${s.client_id_preview})`;
+      }
+    } catch (e) {
+      console.error('Failed to load YouTube status', e);
+    }
+  }
+
+  if (btnSaveYtCreds) {
+    btnSaveYtCreds.addEventListener('click', async () => {
+      btnSaveYtCreds.disabled = true;
+      showToast('Saving YouTube credentials...');
+      try {
+        const payload = {
+          client_id: ytClientId.value.trim(),
+          client_secret: ytClientSecret.value.trim(),
+          refresh_token: ytRefreshToken.value.trim(),
+          privacy_status: ytPrivacySelect.value
+        };
+        const res = await fetch('/api/youtube/credentials', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const json = await res.json();
+        if (json.success) {
+          showToast('YouTube credentials saved successfully!');
+          if (ytFeedbackMsg) {
+            ytFeedbackMsg.innerHTML = `<span style="color: #34d399;"><i class="fa-solid fa-check"></i> ${json.test_result.message || 'Credentials updated!'}</span>`;
+          }
+          loadYouTubeStatus();
+        }
+      } catch (err) {
+        showToast(`Save failed: ${err.message}`);
+      } finally {
+        btnSaveYtCreds.disabled = false;
+      }
+    });
+  }
+
+  if (btnTestYtConn) {
+    btnTestYtConn.addEventListener('click', async () => {
+      btnTestYtConn.disabled = true;
+      if (ytFeedbackMsg) ytFeedbackMsg.innerHTML = `<span style="color: #94a3b8;"><i class="fa-solid fa-spinner fa-spin"></i> Testing Google OAuth connection...</span>`;
+      try {
+        const res = await fetch('/api/youtube/test', { method: 'POST' });
+        const json = await res.json();
+        if (json.connected) {
+          ytFeedbackMsg.innerHTML = `<span style="color: #34d399;"><i class="fa-solid fa-check"></i> Connected to '${json.channel_title}'!</span>`;
+          showToast(`Connected to YouTube: ${json.channel_title}`);
+        } else {
+          ytFeedbackMsg.innerHTML = `<span style="color: #fbbf24;"><i class="fa-solid fa-triangle-exclamation"></i> ${json.message}</span>`;
+          showToast('YouTube connection check completed.');
+        }
+        loadYouTubeStatus();
+      } catch (err) {
+        ytFeedbackMsg.innerHTML = `<span style="color: #ef4444;"><i class="fa-solid fa-circle-xmark"></i> Connection error: ${err.message}</span>`;
+      } finally {
+        btnTestYtConn.disabled = false;
+      }
+    });
+  }
+
+  // Instant Alarm Dispatchers
+  const btnTestWhatsApp = document.getElementById('btn-test-whatsapp');
+  const btnTestEmail = document.getElementById('btn-test-email');
+  const alarmDispatchStatus = document.getElementById('alarm-dispatch-status');
+
+  if (btnTestWhatsApp) {
+    btnTestWhatsApp.addEventListener('click', async () => {
+      btnTestWhatsApp.disabled = true;
+      showToast('Sending WhatsApp alarm to +91 9666641949...');
+      try {
+        const res = await fetch('/api/notify/test-whatsapp', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone: '9666641949' })
+        });
+        const data = await res.json();
+        if (alarmDispatchStatus) {
+          alarmDispatchStatus.style.display = 'block';
+          alarmDispatchStatus.innerHTML = `<span style="color: #25D366;"><i class="fa-brands fa-whatsapp"></i> WhatsApp Alarm to +91 9666641949: ${data.result.details}</span>`;
+        }
+        showToast('WhatsApp Alarm Sent Successfully!');
+      } catch (err) {
+        showToast(`WhatsApp Alarm failed: ${err.message}`);
+      } finally {
+        btnTestWhatsApp.disabled = false;
+      }
+    });
+  }
+
+  if (btnTestEmail) {
+    btnTestEmail.addEventListener('click', async () => {
+      btnTestEmail.disabled = true;
+      showToast('Sending email alarm to monisahith11@gmail.com...');
+      try {
+        const res = await fetch('/api/notify/test-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: 'monisahith11@gmail.com' })
+        });
+        const data = await res.json();
+        if (alarmDispatchStatus) {
+          alarmDispatchStatus.style.display = 'block';
+          alarmDispatchStatus.innerHTML = `<span style="color: #06b6d4;"><i class="fa-solid fa-envelope"></i> Email Alert to monisahith11@gmail.com: ${data.result.details}</span>`;
+        }
+        showToast('Email Alarm Sent to monisahith11@gmail.com!');
+      } catch (err) {
+        showToast(`Email Alarm failed: ${err.message}`);
+      } finally {
+        btnTestEmail.disabled = false;
+      }
+    });
+  }
+
+  // -----------------------------------------
+  // SELF-ENHANCING AI AGENT DASHBOARD
+  // -----------------------------------------
+  async function loadAiLearnerStatus() {
+    try {
+      const res = await fetch('/api/ai-learner/status');
+      const json = await res.json();
+      if (!json.success || !json.data) return;
+
+      const d = json.data;
+      const statIter = document.getElementById('ai-stat-iter');
+      const statHook = document.getElementById('ai-stat-hook');
+      const statRetention = document.getElementById('ai-stat-retention');
+      const statStyle = document.getElementById('ai-stat-style');
+      const logsContainer = document.getElementById('ai-evolution-logs');
+      const learnerBadge = document.getElementById('learner-badge');
+
+      if (statIter) statIter.textContent = `Iteration #${d.iteration}`;
+      if (learnerBadge) learnerBadge.textContent = `Gen #${d.iteration}`;
+      if (statHook) statHook.textContent = d.hook_sensitivity;
+      if (statRetention) statRetention.textContent = d.retention_target;
+      if (statStyle) statStyle.textContent = d.top_style;
+
+      if (logsContainer && d.evolution_log) {
+        logsContainer.innerHTML = '';
+        d.evolution_log.forEach((logText, idx) => {
+          const item = document.createElement('div');
+          item.style.background = 'rgba(18, 24, 38, 0.7)';
+          item.style.border = '1px solid rgba(255, 255, 255, 0.08)';
+          item.style.padding = '0.75rem 1rem';
+          item.style.borderRadius = '8px';
+          item.style.fontSize = '0.85rem';
+          item.style.color = '#cbd5e1';
+          item.innerHTML = `<strong style="color: #818cf8;"><i class="fa-solid fa-dna"></i> Cycle ${idx + 1}:</strong> ${logText}`;
+          logsContainer.appendChild(item);
+        });
+      }
+    } catch (e) {
+      console.error('Failed to load AI learner status', e);
+    }
+  }
+
+  // Initialize status on start
+  loadAiLearnerStatus();
+  loadSchedulerConfig();
+  loadYouTubeStatus();
 
   if (btnRefreshVault) {
     btnRefreshVault.addEventListener('click', loadMediaVault);

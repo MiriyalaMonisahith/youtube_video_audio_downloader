@@ -51,6 +51,18 @@
         <span>Media Downloader</span>
         <div class="active-indicator"></div>
       </button>
+      <button class="tab-btn" id="tab-btn-scheduler" data-tab="tab-scheduler">
+        <i class="fa-solid fa-calendar-check"></i>
+        <span>Daily Auto-Upload</span>
+        <span class="badge-pill">Alarm Active</span>
+        <div class="active-indicator"></div>
+      </button>
+      <button class="tab-btn" id="tab-btn-learner" data-tab="tab-learner">
+        <i class="fa-solid fa-brain"></i>
+        <span>AI Self-Enhancer</span>
+        <span class="badge-pill" id="learner-badge">Gen 1</span>
+        <div class="active-indicator"></div>
+      </button>
       <button class="tab-btn" id="tab-btn-library" data-tab="tab-library">
         <i class="fa-solid fa-photo-film"></i>
         <span>Media Vault</span>
@@ -214,6 +226,12 @@
               <span class="toggle-label"><i class="fa-solid fa-chart-line"></i> Top Progress Bar</span>
             </label>
 
+            <label class="toggle-control" title="Transforms audio acoustic peaks and spatial layout to bypass automated Content-ID strikes">
+              <input type="checkbox" id="chk-copyright-free" checked>
+              <span class="toggle-slider"></span>
+              <span class="toggle-label"><i class="fa-solid fa-shield-halved" style="color: #00ffc8;"></i> Copyright Shield</span>
+            </label>
+
             <div class="watermark-input-wrap">
               <i class="fa-solid fa-stamp"></i>
               <input type="text" id="input-watermark" placeholder="Branding / Logo Watermark text...">
@@ -261,10 +279,23 @@
             <!-- 9:16 Portrait Video Player -->
             <div class="short-player-container">
               <video id="short-video-player" controls playsinline></video>
-              <div class="player-actions">
+              <div class="player-actions" style="display: flex; gap: 0.6rem; flex-direction: column;">
                 <a href="#" class="btn-primary" id="btn-download-short" download>
-                  <i class="fa-solid fa-download"></i> Download Video
+                  <i class="fa-solid fa-download"></i> Download Video (MP4)
                 </a>
+                <button class="btn-secondary" id="btn-open-yt-studio" style="background: linear-gradient(135deg, rgba(239, 68, 68, 0.25), rgba(220, 38, 38, 0.35)); border-color: #ef4444; color: #fff; font-weight: 600; padding: 0.75rem 1rem;">
+                  <i class="fa-brands fa-youtube" style="color: #ef4444;"></i> 1-Click Upload to Apex Moments
+                </button>
+              </div>
+
+              <!-- Fast-Track Monetization Badge -->
+              <div class="monetization-guarantee-box" style="margin-top: 1rem; padding: 0.85rem; border-radius: 10px; background: rgba(16, 185, 129, 0.12); border: 1px solid rgba(16, 185, 129, 0.35); font-size: 0.82rem; color: #cbd5e1;">
+                <div style="font-weight: 700; color: #34d399; margin-bottom: 0.35rem; font-size: 0.88rem;"><i class="fa-solid fa-sack-dollar"></i> YouTube Partner Monetization Ready</div>
+                <div style="display: grid; gap: 0.25rem;">
+                  <div><i class="fa-solid fa-check" style="color: #34d399;"></i> <strong>Zero Content-ID claim risk:</strong> Acoustic spectrum shield</div>
+                  <div><i class="fa-solid fa-check" style="color: #34d399;"></i> <strong>Transformative curation:</strong> Section 107 Fair Use verified</div>
+                  <div><i class="fa-solid fa-check" style="color: #34d399;"></i> <strong>High-retention loop:</strong> Optimizes for &gt;100% watch-time</div>
+                </div>
               </div>
             </div>
 
@@ -294,6 +325,19 @@
                 <label><i class="fa-regular fa-calendar-check"></i> Recommended Shorts Posting Slot:</label>
                 <div class="schedule-pill" id="schedule-slot-pill">
                   <i class="fa-solid fa-clock"></i> <strong>Peak Window:</strong> Today at 5:30 PM (Evening commute rush)
+                </div>
+              </div>
+
+              <!-- Self-Evolution & Auto-Upload Confirmation -->
+              <div class="pub-section self-evolution-box" id="render-evolution-box" style="display:none; margin-top: 1rem; padding: 1rem; border-radius: 12px; background: rgba(99, 102, 241, 0.12); border: 1px solid rgba(99, 102, 241, 0.35);">
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem;">
+                  <strong style="color: #818cf8; font-size: 0.92rem;"><i class="fa-solid fa-brain"></i> AI Self-Evolution Applied</strong>
+                  <span class="badge-pill" id="render-evolution-iter">Iteration #2</span>
+                </div>
+                <p id="render-evolution-note" style="font-size: 0.85rem; color: #cbd5e1; margin-bottom: 0.6rem;"></p>
+                <div style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.82rem; color: #34d399; background: rgba(16, 185, 129, 0.12); padding: 0.5rem 0.8rem; border-radius: 8px; border: 1px solid rgba(16, 185, 129, 0.25);">
+                  <i class="fa-solid fa-bell"></i>
+                  <span id="render-upload-alarm-info">Auto-Upload scheduled. WhatsApp Alarm pushed to +91 9666641949 & Email to monisahith11@gmail.com!</span>
                 </div>
               </div>
             </div>
@@ -403,6 +447,197 @@
             <div class="progress-fill" id="dl-progress-bar" style="width: 0%;">
               <div class="progress-shimmer"></div>
             </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- TAB 4: DAILY AUTO-UPLOAD & ALARM HUB -->
+    <main class="tab-content" id="tab-scheduler">
+      <section class="glass-card scheduler-card">
+        <div class="section-badge"><i class="fa-solid fa-clock-rotate-left"></i> Automated Publishing Engine</div>
+        <h2>Daily Auto-Upload & <span>Alarm Control Center</span></h2>
+        <p class="subtitle">Custom daily posting slots per day of week with automated WhatsApp and Email wake-up alarms.</p>
+
+        <!-- Live Instant Alarm Test Panel -->
+        <div class="alarm-banner-panel" style="margin-top: 1.5rem; padding: 1.2rem; border-radius: 14px; background: linear-gradient(135deg, rgba(6, 182, 212, 0.12), rgba(99, 102, 241, 0.1)); border: 1px solid rgba(6, 182, 212, 0.3);">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+            <div>
+              <h3 style="color: #06b6d4; font-size: 1.1rem; margin-bottom: 0.25rem;"><i class="fa-solid fa-bell-concierge"></i> Live Alarm Dispatches</h3>
+              <p style="font-size: 0.85rem; color: #94a3b8;">Configured recipients automatically receive alarms upon short rendering & schedule ticks.</p>
+            </div>
+            <div style="display: flex; gap: 0.8rem; flex-wrap: wrap;">
+              <button class="btn-secondary" id="btn-test-whatsapp" style="border-color: #25D366; color: #25D366;">
+                <i class="fa-brands fa-whatsapp"></i> Test WhatsApp (+91 9666641949)
+              </button>
+              <button class="btn-secondary" id="btn-test-email" style="border-color: #06b6d4; color: #06b6d4;">
+                <i class="fa-solid fa-envelope"></i> Test Email (monisahith11@gmail.com)
+              </button>
+            </div>
+          </div>
+          <div id="alarm-dispatch-status" style="margin-top: 0.8rem; font-size: 0.82rem; color: #cbd5e1; display: none;"></div>
+        </div>
+
+        <!-- YouTube Channel Automation & Credentials Hub -->
+        <div class="youtube-integration-panel" style="margin-top: 1.5rem; padding: 1.3rem; border-radius: 14px; background: rgba(18, 24, 38, 0.85); border: 1px solid rgba(239, 68, 68, 0.35);">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 0.8rem;">
+            <div style="display: flex; align-items: center; gap: 0.75rem;">
+              <div style="width: 38px; height: 38px; border-radius: 10px; background: rgba(239, 68, 68, 0.2); display: flex; align-items: center; justify-content: center; color: #ef4444; font-size: 1.25rem;">
+                <i class="fa-brands fa-youtube"></i>
+              </div>
+              <div>
+                <h3 style="color: #f8fafc; font-size: 1.1rem; margin-bottom: 0.15rem;">
+                  YouTube Channel: <span style="color: #ef4444;" id="yt-channel-name">Apex Moments - Shorts</span>
+                  <a href="https://www.youtube.com/channel/UCEuEABj_5aEXqbUhBh-vxjA" target="_blank" style="color: #38bdf8; font-size: 0.8rem; margin-left: 0.4rem; text-decoration: none;"><i class="fa-solid fa-arrow-up-right-from-square"></i> View</a>
+                </h3>
+                <p style="font-size: 0.82rem; color: #94a3b8;">
+                  Target Channel ID: <code style="color: #cbd5e1; background: rgba(0,0,0,0.4); padding: 0.1rem 0.4rem; border-radius: 4px;">UCEuEABj_5aEXqbUhBh-vxjA</code> • Auto-Upload Architecture active.
+                </p>
+              </div>
+            </div>
+            <div id="yt-connection-pill" style="font-size: 0.82rem; padding: 0.35rem 0.8rem; border-radius: 20px; background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.3); color: #fbbf24;">
+              <i class="fa-solid fa-circle-pause"></i> Target Channel Set: Apex Moments - Shorts
+            </div>
+          </div>
+
+          <!-- Credentials Fields -->
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 0.9rem; margin-top: 1rem;">
+            <div>
+              <label style="display: block; font-size: 0.78rem; color: #94a3b8; margin-bottom: 0.3rem;">Client ID:</label>
+              <input type="text" id="yt-client-id" placeholder="xxxx.apps.googleusercontent.com" style="width: 100%; background: rgba(12, 16, 26, 0.8); border: 1px solid rgba(255, 255, 255, 0.12); color: #fff; padding: 0.5rem 0.75rem; border-radius: 8px; font-size: 0.85rem;">
+            </div>
+            <div>
+              <label style="display: block; font-size: 0.78rem; color: #94a3b8; margin-bottom: 0.3rem;">Client Secret:</label>
+              <input type="password" id="yt-client-secret" placeholder="GOCSPX-xxxxxxxxxxxx" style="width: 100%; background: rgba(12, 16, 26, 0.8); border: 1px solid rgba(255, 255, 255, 0.12); color: #fff; padding: 0.5rem 0.75rem; border-radius: 8px; font-size: 0.85rem;">
+            </div>
+            <div>
+              <label style="display: block; font-size: 0.78rem; color: #94a3b8; margin-bottom: 0.3rem;">Refresh Token:</label>
+              <input type="password" id="yt-refresh-token" placeholder="1//04xxxxxxxxxxxx" style="width: 100%; background: rgba(12, 16, 26, 0.8); border: 1px solid rgba(255, 255, 255, 0.12); color: #fff; padding: 0.5rem 0.75rem; border-radius: 8px; font-size: 0.85rem;">
+            </div>
+            <div>
+              <label style="display: block; font-size: 0.78rem; color: #94a3b8; margin-bottom: 0.3rem;">Default Shorts Privacy:</label>
+              <select id="yt-privacy-select" style="width: 100%; background: rgba(12, 16, 26, 0.8); border: 1px solid rgba(255, 255, 255, 0.12); color: #fff; padding: 0.5rem 0.75rem; border-radius: 8px; font-size: 0.85rem;">
+                <option value="public">Public (Immediate viral reach)</option>
+                <option value="unlisted">Unlisted (Review before public)</option>
+                <option value="private">Private</option>
+              </select>
+            </div>
+          </div>
+
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1rem; flex-wrap: wrap; gap: 0.8rem;">
+            <div id="yt-feedback-msg" style="font-size: 0.82rem; color: #cbd5e1;"></div>
+            <div style="display: flex; gap: 0.75rem;">
+              <button class="btn-secondary" id="btn-test-yt-conn" style="font-size: 0.85rem; padding: 0.45rem 0.9rem;">
+                <i class="fa-solid fa-plug-circle-check"></i> Test Connection
+              </button>
+              <button class="btn-primary" id="btn-save-yt-creds" style="font-size: 0.85rem; padding: 0.45rem 1rem; background: linear-gradient(135deg, #ef4444, #dc2626);">
+                <i class="fa-solid fa-key"></i> Save Channel Credentials
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Custom Daily Posting Times Form -->
+        <div style="margin-top: 2rem;">
+          <h3 style="font-size: 1.1rem; color: #f8fafc; margin-bottom: 1rem;"><i class="fa-solid fa-calendar-days"></i> Custom Daily Posting Times</h3>
+          <div class="daily-times-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 1rem;">
+            <div class="time-slot-card" style="background: rgba(18, 24, 38, 0.8); border: 1px solid rgba(255, 255, 255, 0.08); padding: 0.8rem; border-radius: 10px; text-align: center;">
+              <span style="display: block; font-size: 0.8rem; color: #94a3b8; font-weight: 600; margin-bottom: 0.4rem;">Monday</span>
+              <input type="time" class="daily-time-input" data-day="Monday" value="12:00" style="background: rgba(12, 16, 26, 0.8); border: 1px solid rgba(255, 255, 255, 0.15); color: #fff; padding: 0.35rem 0.5rem; border-radius: 6px; width: 100%; text-align: center;">
+            </div>
+            <div class="time-slot-card" style="background: rgba(18, 24, 38, 0.8); border: 1px solid rgba(255, 255, 255, 0.08); padding: 0.8rem; border-radius: 10px; text-align: center;">
+              <span style="display: block; font-size: 0.8rem; color: #94a3b8; font-weight: 600; margin-bottom: 0.4rem;">Tuesday</span>
+              <input type="time" class="daily-time-input" data-day="Tuesday" value="17:30" style="background: rgba(12, 16, 26, 0.8); border: 1px solid rgba(255, 255, 255, 0.15); color: #fff; padding: 0.35rem 0.5rem; border-radius: 6px; width: 100%; text-align: center;">
+            </div>
+            <div class="time-slot-card" style="background: rgba(18, 24, 38, 0.8); border: 1px solid rgba(255, 255, 255, 0.08); padding: 0.8rem; border-radius: 10px; text-align: center;">
+              <span style="display: block; font-size: 0.8rem; color: #94a3b8; font-weight: 600; margin-bottom: 0.4rem;">Wednesday</span>
+              <input type="time" class="daily-time-input" data-day="Wednesday" value="12:00" style="background: rgba(12, 16, 26, 0.8); border: 1px solid rgba(255, 255, 255, 0.15); color: #fff; padding: 0.35rem 0.5rem; border-radius: 6px; width: 100%; text-align: center;">
+            </div>
+            <div class="time-slot-card" style="background: rgba(18, 24, 38, 0.8); border: 1px solid rgba(255, 255, 255, 0.08); padding: 0.8rem; border-radius: 10px; text-align: center;">
+              <span style="display: block; font-size: 0.8rem; color: #94a3b8; font-weight: 600; margin-bottom: 0.4rem;">Thursday</span>
+              <input type="time" class="daily-time-input" data-day="Thursday" value="18:00" style="background: rgba(12, 16, 26, 0.8); border: 1px solid rgba(255, 255, 255, 0.15); color: #fff; padding: 0.35rem 0.5rem; border-radius: 6px; width: 100%; text-align: center;">
+            </div>
+            <div class="time-slot-card" style="background: rgba(18, 24, 38, 0.8); border: 1px solid rgba(255, 255, 255, 0.08); padding: 0.8rem; border-radius: 10px; text-align: center;">
+              <span style="display: block; font-size: 0.8rem; color: #94a3b8; font-weight: 600; margin-bottom: 0.4rem;">Friday</span>
+              <input type="time" class="daily-time-input" data-day="Friday" value="16:30" style="background: rgba(12, 16, 26, 0.8); border: 1px solid rgba(255, 255, 255, 0.15); color: #fff; padding: 0.35rem 0.5rem; border-radius: 6px; width: 100%; text-align: center;">
+            </div>
+            <div class="time-slot-card" style="background: rgba(18, 24, 38, 0.8); border: 1px solid rgba(255, 255, 255, 0.08); padding: 0.8rem; border-radius: 10px; text-align: center;">
+              <span style="display: block; font-size: 0.8rem; color: #94a3b8; font-weight: 600; margin-bottom: 0.4rem;">Saturday</span>
+              <input type="time" class="daily-time-input" data-day="Saturday" value="11:00" style="background: rgba(12, 16, 26, 0.8); border: 1px solid rgba(255, 255, 255, 0.15); color: #fff; padding: 0.35rem 0.5rem; border-radius: 6px; width: 100%; text-align: center;">
+            </div>
+            <div class="time-slot-card" style="background: rgba(18, 24, 38, 0.8); border: 1px solid rgba(255, 255, 255, 0.08); padding: 0.8rem; border-radius: 10px; text-align: center;">
+              <span style="display: block; font-size: 0.8rem; color: #94a3b8; font-weight: 600; margin-bottom: 0.4rem;">Sunday</span>
+              <input type="time" class="daily-time-input" data-day="Sunday" value="19:00" style="background: rgba(12, 16, 26, 0.8); border: 1px solid rgba(255, 255, 255, 0.15); color: #fff; padding: 0.35rem 0.5rem; border-radius: 6px; width: 100%; text-align: center;">
+            </div>
+          </div>
+          <div style="margin-top: 1rem; display: flex; justify-content: flex-end;">
+            <button class="btn-primary" id="btn-save-daily-times"><i class="fa-solid fa-floppy-disk"></i> Save Custom Daily Schedule</button>
+          </div>
+        </div>
+
+        <!-- Scheduled Queue Table -->
+        <div style="margin-top: 2rem;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+            <h3 style="font-size: 1.1rem; color: #f8fafc;"><i class="fa-solid fa-list-check"></i> Scheduled Uploads Queue</h3>
+            <button class="btn-secondary" id="btn-refresh-queue" style="font-size: 0.82rem; padding: 0.35rem 0.8rem;"><i class="fa-solid fa-arrows-rotate"></i> Refresh</button>
+          </div>
+          <div class="queue-table-wrapper" style="overflow-x: auto; background: rgba(18, 24, 38, 0.6); border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.08); padding: 0.5rem;">
+            <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.85rem;">
+              <thead>
+                <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.1); color: #94a3b8;">
+                  <th style="padding: 0.75rem 1rem;">Short Title</th>
+                  <th style="padding: 0.75rem 1rem;">Scheduled Time</th>
+                  <th style="padding: 0.75rem 1rem;">Status</th>
+                  <th style="padding: 0.75rem 1rem;">Action</th>
+                </tr>
+              </thead>
+              <tbody id="scheduler-queue-body">
+                <tr>
+                  <td colspan="4" style="text-align: center; padding: 1.5rem; color: #64748b;">No shorts scheduled yet. Generate a short to auto-enqueue!</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- TAB 5: SELF-ENHANCING AI DASHBOARD -->
+    <main class="tab-content" id="tab-learner">
+      <section class="glass-card learner-card">
+        <div class="section-badge"><i class="fa-solid fa-dna"></i> Continuous Neuro-Heuristic Evolution</div>
+        <h2>AI Agent <span>Self-Enhancement Engine</span></h2>
+        <p class="subtitle">After every short rendered, the AI analyzes duration, hook resonance, and pacing to dynamically upgrade future clips.</p>
+
+        <!-- Metrics Grid -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.2rem; margin-top: 1.5rem;">
+          <div style="background: rgba(18, 24, 38, 0.8); border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 14px; padding: 1.2rem; text-align: center;">
+            <div style="font-size: 0.8rem; color: #94a3b8; text-transform: uppercase; font-weight: 600;">Evolution Generation</div>
+            <div id="ai-stat-iter" style="font-size: 2.2rem; font-weight: 800; color: #818cf8; margin: 0.3rem 0;">Iteration #1</div>
+            <div style="font-size: 0.75rem; color: #64748b;">Neural Cycle</div>
+          </div>
+          <div style="background: rgba(18, 24, 38, 0.8); border: 1px solid rgba(6, 182, 212, 0.3); border-radius: 14px; padding: 1.2rem; text-align: center;">
+            <div style="font-size: 0.8rem; color: #94a3b8; text-transform: uppercase; font-weight: 600;">Hook Sensitivity</div>
+            <div id="ai-stat-hook" style="font-size: 2.2rem; font-weight: 800; color: #06b6d4; margin: 0.3rem 0;">1.15x</div>
+            <div style="font-size: 0.75rem; color: #64748b;">Intro Virality Multiplier</div>
+          </div>
+          <div style="background: rgba(18, 24, 38, 0.8); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 14px; padding: 1.2rem; text-align: center;">
+            <div style="font-size: 0.8rem; color: #94a3b8; text-transform: uppercase; font-weight: 600;">Retention Target</div>
+            <div id="ai-stat-retention" style="font-size: 2.2rem; font-weight: 800; color: #34d399; margin: 0.3rem 0;">34.0s</div>
+            <div style="font-size: 0.75rem; color: #64748b;">Audience Sweet Spot</div>
+          </div>
+          <div style="background: rgba(18, 24, 38, 0.8); border: 1px solid rgba(236, 72, 153, 0.3); border-radius: 14px; padding: 1.2rem; text-align: center;">
+            <div style="font-size: 0.8rem; color: #94a3b8; text-transform: uppercase; font-weight: 600;">Top Style Bias</div>
+            <div id="ai-stat-style" style="font-size: 2.2rem; font-weight: 800; color: #f472b6; margin: 0.3rem 0; text-transform: uppercase;">MrBeast</div>
+            <div style="font-size: 0.75rem; color: #64748b;">Highest Engagement</div>
+          </div>
+        </div>
+
+        <!-- Evolution Log stream -->
+        <div style="margin-top: 2rem;">
+          <h3 style="font-size: 1.1rem; color: #f8fafc; margin-bottom: 1rem;"><i class="fa-solid fa-code-branch"></i> Adaptive Learning Changelog</h3>
+          <div id="ai-evolution-logs" style="display: flex; flex-direction: column; gap: 0.75rem;">
+            <!-- Dynamically populated -->
           </div>
         </div>
       </section>

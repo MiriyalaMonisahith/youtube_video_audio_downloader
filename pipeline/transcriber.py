@@ -88,6 +88,8 @@ def extract_youtube_cloud_transcript(info: Dict[str, Any]) -> Optional[Dict[str,
         clean_segments = []
         all_words = []
         full_text_parts = []
+        prev_clean_text = ""
+        prev_t_start = -999.0
 
         for ev in data.get("events", []):
             t_start = ev.get("tStartMs", 0) / 1000.0
@@ -98,30 +100,68 @@ def extract_youtube_cloud_transcript(info: Dict[str, Any]) -> Optional[Dict[str,
             if not segs:
                 continue
 
-            seg_text = "".join(s.get("utf8", "") for s in segs).strip()
-            if not seg_text or seg_text == "\n":
+            raw_text = "".join(s.get("utf8", "") for s in segs)
+            # Remove zero-width spaces, byte-order marks, and bidirectional markers
+            clean_text = "".join(c for c in raw_text if c not in ('\u200b', '\ufeff', '\u200e', '\u200f', '\n', '\r'))
+            clean_text = " ".join(clean_text.split()).strip()
+            if not clean_text:
                 continue
 
-            # Clean newlines inside segment text
-            clean_text = " ".join(seg_text.split())
+            # Deduplicate concurrent or identical duplicate events from YouTube tracks
+            if clean_text == prev_clean_text and abs(t_start - prev_t_start) < 1.2:
+                continue
+            if t_start < prev_t_start - 0.05:
+                continue
+
+            prev_clean_text = clean_text
+            prev_t_start = t_start
             full_text_parts.append(clean_text)
 
-            # Extract words with timestamps
+            # Extract words with timestamps (using exact word offsets from YouTube if present)
             seg_words = []
-            words_list = clean_text.split()
-            if words_list and d_dur > 0:
-                step = d_dur / len(words_list)
-                w_start = t_start
-                for w in words_list:
+            has_word_offsets = any("tOffsetMs" in s for s in segs)
+
+            if has_word_offsets:
+                for idx, s in enumerate(segs):
+                    w_raw = s.get("utf8", "")
+                    w_clean = "".join(c for c in w_raw if c not in ('\u200b', '\ufeff', '\u200e', '\u200f', '\n', '\r')).strip()
+                    if not w_clean:
+                        continue
+                    w_offset = s.get("tOffsetMs", 0) / 1000.0
+                    w_start = t_start + w_offset
+                    if idx + 1 < len(segs) and "tOffsetMs" in segs[idx + 1]:
+                        w_end = t_start + (segs[idx + 1]["tOffsetMs"] / 1000.0)
+                    else:
+                        w_end = min(t_end, w_start + 0.35)
+                    if w_end <= w_start:
+                        w_end = w_start + 0.25
                     w_obj = {
-                        "word": w,
+                        "word": w_clean,
                         "start": round(w_start, 3),
-                        "end": round(w_start + step, 3),
+                        "end": round(w_end, 3),
                         "probability": 0.99
                     }
                     seg_words.append(w_obj)
                     all_words.append(w_obj)
-                    w_start += step
+            else:
+                words_list = clean_text.split()
+                if words_list:
+                    effective_dur = max(d_dur, 0.2 * len(words_list))
+                    step = effective_dur / len(words_list)
+                    w_start = t_start
+                    for w in words_list:
+                        w_clean = "".join(c for c in w if c not in ('\u200b', '\ufeff', '\u200e', '\u200f')).strip()
+                        if not w_clean:
+                            continue
+                        w_obj = {
+                            "word": w_clean,
+                            "start": round(w_start, 3),
+                            "end": round(w_start + step, 3),
+                            "probability": 0.99
+                        }
+                        seg_words.append(w_obj)
+                        all_words.append(w_obj)
+                        w_start += step
 
             clean_segments.append({
                 "start": round(t_start, 3),
@@ -174,11 +214,30 @@ def transcribe_audio_with_words(
         )
 
     clean_segments = []
+    prev_seg_text = ""
+    prev_seg_start = -999.0
+
     for s in result.get("segments", []):
+        seg_raw = s.get("text", "")
+        seg_clean = "".join(c for c in seg_raw if c not in ('\u200b', '\ufeff', '\u200e', '\u200f', '\n', '\r')).strip()
+        if not seg_clean:
+            continue
+
+        s_start = round(s.get("start", 0.0), 3)
+        s_end = round(s.get("end", 0.0), 3)
+
+        # Skip duplicate hallucinations from Whisper
+        if seg_clean.lower() == prev_seg_text.lower() and abs(s_start - prev_seg_start) < 1.0:
+            continue
+
         words = []
         for w in s.get("words", []):
+            raw_w = w.get("word", "")
+            clean_w = "".join(c for c in raw_w if c not in ('\u200b', '\ufeff', '\u200e', '\u200f')).strip()
+            if not clean_w:
+                continue
             words.append({
-                "word": w.get("word", "").strip(),
+                "word": clean_w,
                 "start": round(w.get("start", 0.0), 3),
                 "end": round(w.get("end", 0.0), 3),
                 "probability": round(w.get("probability", 1.0), 2)
@@ -186,11 +245,13 @@ def transcribe_audio_with_words(
 
         clean_segments.append({
             "id": s.get("id"),
-            "start": round(s.get("start", 0.0), 3),
-            "end": round(s.get("end", 0.0), 3),
-            "text": s.get("text", "").strip(),
+            "start": s_start,
+            "end": s_end,
+            "text": seg_clean,
             "words": words
         })
+        prev_seg_text = seg_clean
+        prev_seg_start = s_start
 
     all_words = [w for s in clean_segments for w in s.get("words", [])]
 
