@@ -5,7 +5,7 @@ at the bottom of 9:16 vertical video with customizable styles
 (MrBeast Yellow, Hormozi Cyan, Neon Red, Minimal Clean).
 """
 
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 import os
 
 STYLES = {
