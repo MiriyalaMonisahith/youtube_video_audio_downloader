@@ -1,19 +1,24 @@
 import re
 from typing import List, Dict, Any
+from pipeline.self_learner import load_learner_state
 
 HOOK_KEYWORDS = {
     "secret": 25, "never": 20, "always": 15, "stop": 22, "truth": 25,
     "insane": 24, "crazy": 20, "mistake": 22, "hack": 20, "trick": 18,
     "money": 20, "million": 22, "billion": 22, "dollar": 18, "danger": 20,
     "warning": 20, "shocking": 25, "worst": 18, "best": 16, "nobody": 22,
-    "why": 18, "how": 15, "look": 15, "listen": 20, "watch": 18
+    "why": 18, "how": 15, "look": 15, "listen": 20, "watch": 18,
+    "exposed": 24, "banned": 25, "illegal": 22, "ruined": 20, "genius": 18,
+    "disaster": 22, "guaranteed": 18, "free": 16, "unbelievable": 25, "wait": 20
 }
 
 EMOTION_PATTERNS = [
     r"\b(unbelievable|impossible|blew my mind|terrifying|hilarious|heartbreaking|brilliant|genius|disaster)\b",
+    r"\b(shocking|jaw-dropping|life-changing|devastating|epic|mind-blowing)\b",
     r"\!{1,3}",
     r"\?{1,2}"
 ]
+
 
 def score_segment_virality(text: str, duration: float, words_count: int, is_opening: bool) -> Dict[str, Any]:
     """
@@ -23,9 +28,13 @@ def score_segment_virality(text: str, duration: float, words_count: int, is_open
     - Thought Completeness (0-100)
     - Pacing / WPM (0-100)
     - Retention Potential (0-100)
+    - Self-learning dynamic agent calibration
     """
     text_lower = text.lower()
-    
+    learner = load_learner_state()
+    hook_sens = float(learner.get("hook_sensitivity", 1.15))
+    retention_target = float(learner.get("retention_target_sec", 34.0))
+
     # 1. Hook Strength
     hook_score = 40
     hook_triggers = []
@@ -38,6 +47,9 @@ def score_segment_virality(text: str, duration: float, words_count: int, is_open
     if "?" in text:
         hook_score += 15
         hook_triggers.append("curiosity question")
+
+    # Apply dynamic self-learning sensitivity multiplier
+    hook_score = int(hook_score * (hook_sens / 1.10))
     hook_score = min(99, max(20, hook_score))
 
     # 2. Emotional Peaks
@@ -50,7 +62,7 @@ def score_segment_virality(text: str, duration: float, words_count: int, is_open
         emotion_score += 10
     emotion_score = min(98, max(25, emotion_score))
 
-    # 3. Pacing & Speech Density (Ideal Shorts WPM: 130 - 180 words per minute)
+    # 3. Pacing & Speech Density (Ideal Shorts WPM: 130 - 185 words per minute)
     wpm = (words_count / (duration / 60.0)) if duration > 0 else 0
     if 130 <= wpm <= 185:
         pacing_score = 95
@@ -69,21 +81,21 @@ def score_segment_virality(text: str, duration: float, words_count: int, is_open
         thought_score += 10
     thought_score = min(98, thought_score)
 
-    # 5. Retention Potential (Combines ideal 20-45s duration + pacing + hook)
+    # 5. Retention Potential (Combines ideal duration near self-learned sweet-spot + pacing + hook)
     retention_score = int(0.4 * hook_score + 0.3 * pacing_score + 0.3 * emotion_score)
-    if 25.0 <= duration <= 45.0:
-        retention_score = min(99, retention_score + 12)
+    # Proximity bonus to self-learned retention target
+    if abs(duration - retention_target) <= 8.0:
+        retention_score = min(99, retention_score + 14)
+    elif 24.0 <= duration <= 46.0:
+        retention_score = min(99, retention_score + 10)
 
     # 6. YouTube Shorts Fast Monetization Index (0-100)
-    # Calibrated for YPP fast-track: 10M views & high CPM engagement
     loop_score = 75
-    # If the end of text has transition words or open curiosity, high loopability
     if re.search(r"\b(because|so|that's why|and then|which means|look at|this is)\b", text_lower[-40:] if len(text_lower) > 40 else text_lower):
         loop_score = 94
     elif re.search(r"\b(secret|never|always|truth|insane)\b", text_lower[:40]):
         loop_score = 88
 
-    # Watch time velocity: 28-45s yields 2.8x more algorithmic watch minutes
     duration_multiplier = 96 if (28.0 <= duration <= 45.0) else (85 if 20.0 <= duration <= 55.0 else 70)
 
     monetization_score = int(
@@ -168,12 +180,10 @@ def find_top_clips(
             duration = seg["end"] - seg_start
 
             if duration >= min_duration:
-                # Ensure we end cleanly on sentence punctuation
                 is_sentence_end = bool(re.search(r"[.!?]$", seg["text"].strip()))
                 is_max_reached = duration >= max_duration
 
                 if is_sentence_end or is_max_reached:
-                    # Score this candidate window
                     scores = score_segment_virality(
                         text=current_text,
                         duration=duration,
@@ -181,7 +191,6 @@ def find_top_clips(
                         is_opening=(seg_start < 10.0)
                     )
 
-                    # Extract first 1-3 seconds hook line
                     first_sentence = re.split(r"(?<=[.!?])\s+", current_text.strip())[0]
 
                     candidates.append({
@@ -221,7 +230,6 @@ def find_top_clips(
     for c in candidates:
         overlaps = False
         for f in filtered:
-            # If start times overlap by more than 8 seconds, skip
             if abs(c["start"] - f["start"]) < 8.0:
                 overlaps = True
                 break
@@ -243,7 +251,6 @@ def select_viral_clips(
     """
     Convenience wrapper for find_top_clips accepting segments and words.
     """
-    # Attach word references to segments if needed
     for seg in segments:
         s_start = seg.get("start", 0)
         s_end = seg.get("end", 0)
@@ -256,7 +263,6 @@ def select_viral_clips(
         top_n=top_n
     )
 
-    # Format output for frontend API
     formatted = []
     for idx, c in enumerate(raw_candidates):
         formatted.append({
@@ -283,4 +289,3 @@ def select_viral_clips(
             }
         })
     return formatted
-
